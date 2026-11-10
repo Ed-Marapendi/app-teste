@@ -66,7 +66,7 @@ function fakeDoc(tipo,nome,extra){
 /* ---------- dados de exemplo ---------- */
 function seed(){
  return {
-  role:null, screen:null, login:{step:"email",email:"maria.souza@gmail.com"},
+  role:null, screen:null, login:{step:"email",email:"",codigo:"",err:""},
   me:{morador:1, sindico:23}, porteiro:null, portLast:0,
   cfg:{nome:"Ed. Marapendi",andares:18,porLado:6,porAndar:12,cota:100,lembrete:3,codigoMin:10,codigoTent:5,sesMorador:30,sesPortaria:90,sesAdm:7,fotoDias:90,bkpDias:30,cadDia:30,cadPessoas:5,exigirPin:false,locSoProp:false,inclSoTitular:false,emailReserva:30,portariaEmail:"portaria.edmarapendi@gmail.com",portRelogin:15,locAntMin:2,locDocsDias:30,waAtivo:true,waNumero:"(21) 98888-0000",waModelo:"Olá, {nome}! Aqui é a portaria do Ed. Marapendi.\nChegou para o apto {apto}: {tipo}{remetente}, às {hora}.\nPode retirar na portaria. Código de conferência: {codigo}."},
   areas:[
@@ -164,7 +164,7 @@ function seed(){
  };
 }
 var S=seed();
-S.conexao={st:"testando"};
+S.conexao={st:"testando"};S.real=null;S.srvMor={};S.meusPedidos=[];
 
 /* ---------- regras ---------- */
 function area(id){return S.areas.filter(function(a){return a.id===id})[0]}
@@ -240,19 +240,21 @@ function vLogin(){
  var h='<div class="hero wrap">'+logo(124)+'<div style="font-weight:700;color:var(--palm)">Portal do Condomínio</div></div><main class="wrap page" style="padding-bottom:40px">';
  if(L.step==="email"){
   h+='<div class="stack"><h1 style="font-size:26px;font-weight:800">Entrar</h1><p class="muted">Digite seu e-mail cadastrado. Enviaremos um código de 6 dígitos. Não há senha para lembrar.</p></div>'+
-  '<form class="stack g12" data-form="sendcode"><div class="fld"><label class="lbl" for="lg-email">E-mail</label><input id="lg-email" class="in" type="email" autocomplete="email" data-bind="login.email" value="'+esc(L.email)+'"></div>'+
+  '<form class="stack g12" data-form="sendcode"><div class="fld"><label class="lbl" for="lg-email">E-mail</label><input id="lg-email" class="in" type="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" data-bind="login.email" value="'+esc(L.email)+'"></div>'+
+  (L.err?'<div class="errmsg" role="alert">'+esc(L.err)+'</div>':'')+
   '<button class="btn block" type="submit">Enviar código</button></form>'+
   '<p class="small muted" style="text-align:center">Ainda não tem acesso? Procure a administração para cadastrar seu e-mail ou <button class="linkbtn" data-a="cadAbrir">clique aqui para solicitar seu cadastro</button>.</p>';
  }else{
   h+='<div class="stack"><h1 style="font-size:26px;font-weight:800">Digite o código</h1><p class="muted">Se o e-mail <strong>'+esc(L.email)+'</strong> estiver cadastrado, você vai receber um código de 6 dígitos. Ele vale por '+S.cfg.codigoMin+' minutos.</p><p class="small muted">Confira se o e-mail está certo. Se já tem cadastro, não precisa pedir de novo.</p></div>'+
-  '<form class="stack g12" data-form="checkcode"><div class="otp">'+[4,8,2,7,1,5].map(function(n,i){return '<input id="otp'+i+'" inputmode="numeric" maxlength="1" aria-label="Dígito '+(i+1)+'" value="'+n+'">'}).join("")+'</div>'+
-  '<p class="hint">No protótipo o código já vem preenchido.</p><button class="btn block" type="submit">Entrar</button><button class="btn ghost block" type="button" data-a="loginback">Usar outro e-mail</button></form>'+
+  '<form class="stack g12" data-form="checkcode"><div class="fld"><label class="lbl" for="lg-codigo">Código de 6 dígitos</label><input id="lg-codigo" class="in otp1" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="000000" data-bind="login.codigo" value="'+esc(L.codigo||"")+'"></div>'+
+  (L.err?'<div class="errmsg" role="alert">'+esc(L.err)+'</div>':'')+
+  '<button class="btn block" type="submit">Entrar</button><button class="btn out block" type="button" data-a="reenviarCodigo">Enviar um novo código</button><button class="btn ghost block" type="button" data-a="loginback">Usar outro e-mail</button></form>'+
   '<p class="small muted" style="text-align:center">Não recebeu o código? Se você ainda não tem cadastro, <button class="linkbtn" data-a="cadAbrir">solicite aqui</button>.</p>';
  }
  function rb(v,avt,t,sub){return '<button class="rolebtn" data-a="enter" data-v="'+v+'"><span class="av">'+avt+'</span><span class="grow">'+t+'<br><span class="small muted" style="font-weight:500">'+sub+'</span></span>'+ic("next")+'</button>'}
  var cx=S.conexao||{};
  h+='<div class="conexao '+(cx.st||"")+'" role="status"><span class="dotc"></span><span class="grow small">'+(cx.st==="ok"?esc(cx.msg):cx.st==="erro"?"Sem conexão com o servidor. "+esc(cx.msg||""):"Conferindo a conexão com o servidor…")+'</span>'+(cx.st==="erro"?'<button class="btn ghost sm" style="color:var(--sea)" data-a="testarConexao">Tentar de novo</button>':'')+'</div>';
- h+='<div class="demo"><div class="section-title">Protótipo · entrar direto como</div>'+
+ h+='<div class="demo"><div class="section-title">Só para conhecer · entrar com dados de exemplo</div>'+
  '<div class="xs muted" style="font-weight:700">MORADORES DO MESMO APARTAMENTO (1203)</div>'+
  rb("morador:1","MS","Maria Souza","Proprietária · apto 1203")+rb("morador:2","PS","Pedro Souza","Proprietário · apto 1203")+
  '<div class="xs muted" style="font-weight:700;margin-top:4px">OUTRAS UNIDADES E EQUIPE</div>'+
@@ -314,9 +316,9 @@ function mInclusao(){
  return h+'<div class="note">'+ic("info",20)+'<span>A administração analisa o pedido. Você recebe a resposta aqui no app, e cada pessoa aprovada recebe um e-mail com o link do app.</span></div>'+formCadastro(C,true)+'</main>';
 }
 function solPill(st){var m={pendente:["Em análise","p-warn"],aprovada:["Aprovada","p-ok"],reprovada:["Reprovada","p-bad"]}[st];return '<span class="pill '+m[1]+'">'+m[0]+'</span>'}
-function pedidos(){var g={},o=[];S.solicitacoes.forEach(function(x){if(!g[x.pedido]){g[x.pedido]={id:x.pedido,origem:x.origem,solicitante:x.solicitante,apto:x.apto,criado:x.criado,pessoas:[]};o.push(g[x.pedido])}g[x.pedido].pessoas.push(x)});return o.sort(function(a,b){return b.id-a.id})}
+function pedidos(){var g={},o=[];S.solicitacoes.forEach(function(x){if(!g[x.pedido]){g[x.pedido]={id:x.pedido,origem:x.origem,solicitante:x.solicitante,apto:x.apto,criado:x.criado,pessoas:[]};o.push(g[x.pedido])}g[x.pedido].pessoas.push(x)});return S.real?o:o.sort(function(a,b){return b.id-a.id})}
 function solPendentes(){return S.solicitacoes.filter(function(x){return x.status==="pendente"}).length}
-function alertasSol(x,E){var a=[],em=(E.email||"").trim().toLowerCase();
+function alertasSol(x,E){if(S.real)return x.alertas||[];var a=[],em=(E.email||"").trim().toLowerCase();
  if(!/\S+@\S+\.\S+/.test(em))a.push("E-mail inválido.");
  else if(emailExiste(em))a.push("Este e-mail já tem cadastro no app.");
  if(S.solicitacoes.some(function(y){return y.id!==x.id&&y.status==="pendente"&&y.email.toLowerCase()===em}))a.push("O mesmo e-mail está em outro pedido em análise.");
@@ -325,7 +327,7 @@ function alertasSol(x,E){var a=[],em=(E.email||"").trim().toLowerCase();
  return a}
 function sSolicitacoes(){
  var ps=pedidos(),h='';
- if(S.ui.pedId){var P=ps.filter(function(p){return p.id===S.ui.pedId})[0];if(P)return sPedidoDet(P)}
+ if(S.ui.pedId){var P=ps.filter(function(p){return String(p.id)===String(S.ui.pedId)})[0];if(P)return sPedidoDet(P)}
  if(S.ui.okSol)h+='<div class="okmsg" role="status">'+esc(S.ui.okSol)+'</div>';
  var fil=S.ui.filSol||"pend",l=ps.filter(function(p){var pend=p.pessoas.some(function(x){return x.status==="pendente"});return fil==="pend"?pend:!pend});
  h+='<p class="small muted">Pedidos feitos pela tela de entrada ou por moradores no app. Confira os dados e aprove ou reprove cada pessoa.</p><div class="chips">'+[["pend","Em análise"],["dec","Decididos"]].map(function(x){return '<button class="chip'+(fil===x[0]?" on":"")+'" data-a="filSol" data-v="'+x[0]+'">'+x[1]+'</button>'}).join("")+'</div>';
@@ -333,7 +335,7 @@ function sSolicitacoes(){
  return h;
 }
 function sPedidoDet(P){
- var mor=moradoresDe(P.apto),np=P.pessoas.filter(function(x){return x.status==="pendente"}).length;
+ var mor=S.real?(S.srvMor[P.id]||[]).map(function(m){return {nome:m.nome,vinculo:m.vinculo,sit:m.situacao}}):moradoresDe(P.apto),np=P.pessoas.filter(function(x){return x.status==="pendente"}).length;
  if(!S.ui.solEd)S.ui.solEd={};
  var h='<button class="btn ghost sm" style="align-self:flex-start;color:var(--sea);padding-left:0" data-a="fechaPed">'+ic("back",18)+'Todos os pedidos</button>';
  if(S.ui.okSol)h+='<div class="okmsg" role="status">'+esc(S.ui.okSol)+'</div>';
@@ -515,7 +517,7 @@ function mPerfil(){
  (S.ui.editPerfil?'<div class="fld"><label class="lbl" for="pf-tel">Telefone / WhatsApp</label><input id="pf-tel" class="in" inputmode="tel" data-bind="f.tel" value="'+esc(S.f.tel!=null?S.f.tel:u.tel)+'"></div>':'<div><div class="xs muted">Telefone / WhatsApp</div><b>'+esc(u.tel||"Não informado")+'</b></div>')+'</section>';
  h+='<section class="card"><h2 class="h2">Moradores do apto '+u.apto+'</h2><p class="small muted">Cada morador entra com o próprio e-mail e vê as mesmas reservas, encomendas e locações do apartamento.</p><div class="list">'+cad.map(function(m){return '<div class="li"><span class="av">'+esc(ini(m.nome))+'</span><span class="grow"><b>'+esc(m.nome)+(m.id===u.id?" (você)":"")+'</b><span class="xs muted" style="display:block">'+esc(m.vinculo||"")+'</span></span>'+(m.sit==="Ativo"?'<span class="pill p-ok">Com acesso</span>':sitPill(m.sit))+'</div>'}).join("")+'</div>'+
  (podeIncl(u)?'<button class="btn out" data-a="pedirIncl">Pedir inclusão de morador</button>':'<p class="small muted">Para incluir alguém, peça ao proprietário ou ao inquilino da unidade, ou fale com a administração.</p>')+'</section>';
- var mp=S.solicitacoes.filter(function(x){return x.apto===u.apto&&x.origem==="morador"});
+ var mp=S.real?S.meusPedidos.map(function(x){return {nome:x.nome,vinc:x.vinculo,criado:x.criadoEm,status:x.status}}):S.solicitacoes.filter(function(x){return x.apto===u.apto&&x.origem==="morador"});
  if(mp.length)h+='<section class="card tight"><h2 class="h2">Pedidos de inclusão</h2><div class="list">'+mp.map(function(x){return '<div class="li"><span class="grow"><b>'+esc(x.nome)+'</b><span class="xs muted" style="display:block">'+esc(x.vinc)+' · pedido em '+esc(x.criado)+(x.status==="reprovada"?' · procure a administração':x.status==="aprovada"?' · já pode entrar no app':'')+'</span></span>'+solPill(x.status)+'</div>'}).join("")+'</div></section>';
  h+='<section class="card tight"><h2 class="h2">Avisos por e-mail</h2>'+[["enc","Encomendas","Quando um pacote chegar na portaria"],["res","Reservas","Confirmação, aprovação e cancelamento"],["lem","Lembrete de retirada","Se a encomenda ficar mais de "+S.cfg.lembrete+" dias"]].map(function(d){var on=d[0]==="enc"?u.avEmail!==false:av[d[0]];
   return '<button class="switchrow" data-a="avTog" data-v="'+d[0]+'" aria-pressed="'+on+'"><span><b style="display:block">'+d[1]+'</b><span class="small muted">'+d[2]+'</span></span><span class="toggle'+(on?" on":"")+'"><i></i></span></button>'}).join("")+
@@ -738,7 +740,7 @@ function sPainel(){
  var ag=S.reservas.filter(function(r){return r.status==="aguardando"}),pend=S.encomendas.filter(function(e){return e.status==="pendente"}),fal=pend.filter(function(e){return e.aviso!=="email"});
  var prox=S.reservas.filter(function(r){return r.data>=TODAY&&r.data<=addDays(TODAY,30)&&ativa(r)}).length;
  var velhas=pend.filter(function(e){return (s2d(TODAY)-s2d(e.data))/86400000>=S.cfg.lembrete}).length;
- var h='<main class="wrap page"><div class="kpis">'+
+ var h='<main class="wrap page">'+(S.real&&CFG.modoExemplo?'<div class="note">'+ic("info",20)+'<span>Ambiente de TESTE. Nesta etapa, só a entrada e os pedidos de cadastro usam o servidor de verdade. O resto ainda mostra dados de exemplo.</span></div>':'')+'<div class="kpis">'+
  '<button class="kpi" data-a="go" data-v="reservas"><span class="k">Reservas nos próximos 30 dias</span><b>'+prox+'</b><span class="xs muted">Churrasqueira e salão</span></button>'+
  '<button class="kpi" data-a="go" data-v="reservas"><span class="k">Aguardando aprovação</span><b style="color:var(--warn)">'+ag.length+'</b><span class="xs muted">Espaços com aprovação manual</span></button>'+
  '<button class="kpi" data-a="go" data-v="encomendas"><span class="k">Encomendas na portaria</span><b>'+pend.length+'</b><span class="xs muted">'+velhas+' há '+S.cfg.lembrete+' dias ou mais</span></button>'+
@@ -981,7 +983,7 @@ function vSheet(){
   (rec?'<div class="chips">'+["Documento ilegível","Falta documento de um hóspede","CPF não confere com o documento","Período não permitido pelo regimento"].map(function(m){return '<button class="chip" data-a="motivoRapido" data-v="'+m+'">'+m+'</button>'}).join("")+'</div>':'')+
   (S.ui.errForm?'<div class="errmsg" role="alert">'+esc(S.ui.errForm)+'</div>':'')+
   '<button class="btn badb block" data-a="locConfMotivo">'+(rec?"Recusar e avisar o morador":"Confirmar cancelamento")+'</button><button class="btn ghost block" data-a="fechaSheet">Voltar</button></div>';}
- else if(s.t==="solRep"){var sx=S.solicitacoes.filter(function(x){return x.id===s.id})[0];
+ else if(s.t==="solRep"){var sx=S.solicitacoes.filter(function(x){return String(x.id)===String(s.id)})[0];
   h=head("Reprovar pedido")+'<div class="wrap stack g12"><div class="small"><b>'+esc(sx.nome)+'</b> · apto '+esc(sx.apto)+' · '+esc(sx.email)+'</div>'+
   '<div class="fld"><label class="lbl" for="sr-mot">Motivo (interno, a pessoa não vê)</label><textarea id="sr-mot" class="in" data-bind="f.motivo" placeholder="Ex.: não é morador da unidade">'+esc(S.f.motivo||"")+'</textarea></div>'+
   '<div class="chips">'+["Não é morador da unidade","Menor de idade","Pedido duplicado","Dados não conferem"].map(function(m){return '<button class="chip" data-a="motivoRapido" data-v="'+m+'">'+m+'</button>'}).join("")+'</div>'+
@@ -1081,15 +1083,16 @@ var A={
    else toast("Cancelada. A administração e a portaria foram avisadas.");
    audit("Cancelou locação","Apto "+l.apto+" · "+periodo(l)+(m?" · "+m:""))}
   S.sheet=null;S.f={}},
- loginback:function(){S.login.step="email"},
+ loginback:function(){S.login.step="email";S.login.err="";S.login.codigo=""},
+ reenviarCodigo:function(){pedirCodigo()},
  testarConexao:function(){testarConexao()},
- sair:function(){S.role=null;S.screen=null;S.sheet=null;S.login.step="email"},
- sairTodos:function(){audit("Saiu de todos os aparelhos",me().nome);A.sair();toast("Você saiu de todos os aparelhos. Para entrar de novo, use um novo código.")},
+ sair:function(){if(S.real){chamarServidor("sessao.sair",{},{grava:true,silencioso:true}).catch(function(){});sairLocal();return}S.role=null;S.screen=null;S.sheet=null;S.login.step="email"},
+ sairTodos:function(){if(S.real){chamarServidor("sessao.sairTodos",{},{grava:true}).then(function(d){sairLocal();toast("Você saiu de todos os aparelhos ("+d.encerradas+"). Para entrar de novo, peça um novo código.");render()},function(e){toast(e.mensagem);render()});return}audit("Saiu de todos os aparelhos",me().nome);A.sair();toast("Você saiu de todos os aparelhos. Para entrar de novo, use um novo código.")},
  pinOk:function(){var pp=user(S.sheet.id);if(S.f.pinIn!==pp.pin){S.ui.errForm="PIN incorreto. Tente de novo.";S.f.pinIn="";return}S.sheet=null;S.ui.errForm="";S.f={};S.porteiro=pp.id;S.portLast=Date.now();toast("Olá, "+pp.nome.split(" ")[0]+"! O que você registrar fica no seu nome.")},
  /* pedidos de cadastro */
  cadAbrir:function(){S.cad=novoCad("publico");S.ui.errForm="";S.login.step="cadastro"},
  cdVoltar:function(){S.cad=null;S.ui.errForm="";S.login.step="email"},
- cdVoltarPerfil:function(){S.cad=null;go("perfil")},
+ cdVoltarPerfil:function(){S.cad=null;go("perfil");if(S.real)carregarMeusPedidos()},
  cdAndar:function(v){S.cad.andar=+v;S.cad.apto=""},
  cdApto:function(v){S.cad.apto=v},
  cdAdd:function(){if(S.cad.pessoas.length<S.cfg.cadPessoas)S.cad.pessoas.push(novaPessoaCad())},
@@ -1101,9 +1104,13 @@ var A={
   if(C.origem==="publico"&&!aptoPadrao(C.apto))e="Escolha o andar e o apartamento.";
   if(!e)C.pessoas.some(function(p,i){var n="Pessoa "+(i+1)+": ",em=p.email.trim().toLowerCase();if(p.nome.trim().split(/\s+/).length<2)e=n+"informe o nome completo.";else if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em))e=n+"e-mail inválido.";else if(vistos[em])e=n+"o e-mail repete o de outra pessoa. Cada pessoa precisa do próprio e-mail.";else if(!p.semTel&&soDig(p.tel).length<10)e=n+"informe o telefone com DDD ou marque \"Não tenho telefone\".";vistos[em]=1;return !!e});
   if(!e&&!C.aceite)e="Marque a autorização de uso dos dados para enviar.";
-  if(!e&&C.origem==="publico"&&S.cadHoje+C.pessoas.length>S.cfg.cadDia)e="Muitos pedidos hoje. Tente amanhã ou procure a administração.";
   if(e){S.ui.errForm=e;return}
-  S.ui.errForm="";var q=quandoAgora(),ped=uid(),u=C.origem==="morador"?me():null;
+  S.ui.errForm="";
+  if(C.origem==="publico"||S.real){var pub=C.origem==="publico",dados={aceite:true,robo:C.robo||"",pessoas:C.pessoas.map(function(p){return {nome:p.nome,email:p.email,telefone:p.semTel?"":p.tel,semTelefone:!!p.semTel,vinculo:p.vinc,whatsapp:!p.semTel&&!!p.wa}})};
+   if(pub)dados.unidade=C.apto;
+   chamarServidor(pub?"cadastro.solicitar":"cadastro.pedirInclusao",dados,{grava:true}).then(function(d){C.res=d.resultado;if(!pub)carregarMeusPedidos();window.scrollTo(0,0);render()},function(er){S.ui.errForm=er.mensagem;render()});
+   return}
+  var q=quandoAgora(),ped=uid(),u=C.origem==="morador"?me():null;
   if(C.robo){C.res=C.pessoas.map(function(p){return {nome:p.nome,email:p.email,st:"ok"}});return}
   C.res=C.pessoas.map(function(p,i){var em=p.email.trim();
    if(emailExiste(em))return {nome:p.nome.trim(),email:em,st:"tem"};
@@ -1112,14 +1119,15 @@ var A={
    return {nome:p.nome.trim(),email:em,st:"ok"}});
   var n=C.res.filter(function(r){return r.st==="ok"}).length;if(C.origem==="publico")S.cadHoje+=n;
   if(n){if(u)audit("Pediu inclusão de morador","Apto "+u.apto+" · "+n+" pessoa(s)");else S.audit.unshift({q:q,quem:"Tela de entrada (sem login)",acao:"Pedido de cadastro",det:"Apto "+C.apto+" · "+n+" pessoa(s)"})}},
- goSol:function(){go("usuarios");S.ui.usrTab="solicitacoes";S.ui.pedId=null},
+ goSol:function(){go("usuarios");S.ui.usrTab="solicitacoes";S.ui.pedId=null;if(S.real)carregarPedidos()},
  filSol:function(v){S.ui.filSol=v},
- abrirPed:function(v){S.ui.pedId=+v;S.ui.okSol="";S.ui.solEd={};window.scrollTo(0,0)},
+ abrirPed:function(v){S.ui.pedId=String(v);S.ui.okSol="";S.ui.solEd={};window.scrollTo(0,0)},
  fechaPed:function(){S.ui.pedId=null;S.ui.okSol=""},
- solAprovar:function(v){var x=S.solicitacoes.filter(function(y){return y.id===+v})[0],er=aprovarSol(x);if(er){toast(er);return}S.ui.okSol=x.nome+" aprovado(a). Enviamos o e-mail de boas-vindas para "+x.email+"."},
- solAprovarTodos:function(v){var ok=[],er=[];S.solicitacoes.filter(function(y){return y.pedido===+v&&y.status==="pendente"}).forEach(function(x){var r=aprovarSol(x);if(r)er.push(r);else ok.push(x.nome)});S.ui.okSol=ok.length?ok.length+(ok.length>1?" pessoas aprovadas: ":" pessoa aprovada: ")+ok.join(", ")+". Os e-mails de boas-vindas foram enviados.":"";if(er.length)toast(er.join(" "))},
- solReprovar:function(v){S.f={motivo:""};S.ui.errForm="";S.sheet={t:"solRep",id:+v}},
- solConfRep:function(){var x=S.solicitacoes.filter(function(y){return y.id===S.sheet.id})[0],m=(S.f.motivo||"").trim();if(!m){S.ui.errForm="Escreva o motivo. Ele fica só para a administração.";return}
+ solAprovar:function(v){var x=solPorId(v);if(S.real){aprovarReal([x]);return}var er=aprovarSol(x);if(er){toast(er);return}S.ui.okSol=x.nome+" aprovado(a). Enviamos o e-mail de boas-vindas para "+x.email+"."},
+ solAprovarTodos:function(v){var ok=[],er=[],alvo=S.solicitacoes.filter(function(y){return String(y.pedido)===String(v)&&y.status==="pendente"});if(S.real){aprovarReal(alvo);return}alvo.forEach(function(x){var r=aprovarSol(x);if(r)er.push(r);else ok.push(x.nome)});S.ui.okSol=ok.length?ok.length+(ok.length>1?" pessoas aprovadas: ":" pessoa aprovada: ")+ok.join(", ")+". Os e-mails de boas-vindas foram enviados.":"";if(er.length)toast(er.join(" "))},
+ solReprovar:function(v){S.f={motivo:""};S.ui.errForm="";S.sheet={t:"solRep",id:String(v)}},
+ solConfRep:function(){var x=solPorId(S.sheet.id),m=(S.f.motivo||"").trim();if(!m){S.ui.errForm="Escreva o motivo. Ele fica só para a administração.";return}
+  if(S.real){chamarServidor("cadastro.reprovar",{id:x.id,motivo:m},{grava:true}).then(function(){S.ui.okSol=x.nome+": pedido reprovado. Enviamos e-mail pedindo para procurar a administração.";S.sheet=null;S.f={};S.ui.errForm="";return carregarPedidos()},function(er){S.ui.errForm=er.mensagem;render()});return}
   S.ui.errForm="";x.status="reprovada";x.motivo=m;x.decididoPor=me().nome;x.decididoEm=quandoAgora();
   if(x.origem==="morador")notify(x.apto,"O pedido de inclusão de "+x.nome+" não foi aprovado. Procure a administração.","perfil");
   audit("Reprovou cadastro",x.nome+" · apto "+x.apto+" · "+m);S.ui.okSol=x.nome+": pedido reprovado. Enviamos e-mail pedindo para procurar a administração.";S.sheet=null;S.f={}},
@@ -1220,7 +1228,7 @@ var A={
   S.reservas.push(r);audit("Incluiu reserva",a.nome+" · apto "+apto+" · "+fmtD(f.data)+" · pedido por "+f.orig.toLowerCase());notify(apto,"A administração incluiu sua reserva de "+a.nome+" em "+fmtD(f.data)+".","reservas");
   S.ui.form=null;S.f={};S.ui.filRes="todas";S.ui.okRes="Reserva incluída para o apto "+apto+" ("+a.nome+", "+fmtD(f.data)+"). O morador recebeu a confirmação."},
  filRes:function(v){S.ui.filRes=v},
- usrTab:function(v){S.ui.usrTab=v;S.ui.pedId=null;S.ui.okSol=""},
+ usrTab:function(v){S.ui.usrTab=v;S.ui.pedId=null;S.ui.okSol="";if(v==="solicitacoes"&&S.real)carregarPedidos()},
  sNovoUser:function(){S.ui.form="novoUser";S.ui.okUser="";S.f={perfil:S.ui.usrTab==="equipe"?"porteiro":"morador",nome:"",email:"",tel:"",apto:"",vinculo:"Proprietário(a)",turno:"Manhã (06h–14h)",mandato:"2027-12-31",sit:"Ativo"}},
  sEditUser:function(v){var u=user(+v);S.ui.form=u.id;S.ui.okUser="";S.f=Object.assign({vinculo:"Proprietário(a)",turno:"Manhã (06h–14h)",mandato:"2027-12-31"},JSON.parse(JSON.stringify(u)));window.scrollTo(0,0)},
  fPerfil:function(v){S.f.perfil=v},
@@ -1275,10 +1283,8 @@ document.addEventListener("click",function(ev){
 });
 document.addEventListener("submit",function(ev){
  ev.preventDefault();var k=ev.target.dataset.form;
- if(k==="sendcode"){if(!/\S+@\S+\.\S+/.test(S.login.email)){toast("Digite um e-mail válido.");render();return}S.login.step="code"}
- else if(k==="checkcode"){if(S.login.email.trim().toLowerCase()===S.cfg.portariaEmail){A.enter("portaria");render();return}var u=S.usuarios.filter(function(x){return x.email.toLowerCase()===S.login.email.trim().toLowerCase()&&x.sit!=="Desativado"})[0];
-  if(!u){toast("Código incorreto ou expirado. Confira o e-mail e peça um novo código.");render();return}
-  var role=u.perfil==="morador"?"morador":"sindico";A.enter(role+":"+u.id)}
+ if(k==="sendcode"){pedirCodigo();return}
+ else if(k==="checkcode"){entrarComCodigo();return}
  else if(k==="addConv"){var f=S.f,r=S.reservas.filter(function(x){return x.id===S.ui.resId})[0],n=(f.cn||"").trim();if(!n){toast("Digite o nome do convidado.");render();return}
   if(r.convidados.length>=area(r.area).cap){toast("Lista cheia: limite de "+area(r.area).cap+" pessoas.");render();return}
   r.convidados.push({n:n,d:(f.cd||"").trim()});S.f={};toast(n+" adicionado(a) à lista.")}
@@ -1289,6 +1295,39 @@ document.addEventListener("input",function(ev){var t=ev.target,b=t.dataset&&t.da
  if(t.dataset.live)render()});
 document.addEventListener("change",function(ev){var t=ev.target;if(t.dataset&&t.dataset.bind){setPath(t.dataset.bind,t.value);if(t.dataset.rerender||t.tagName==="SELECT")render()}});
 document.addEventListener("keydown",function(ev){if(ev.key==="Escape"&&S.sheet){S.sheet=null;render()}});
+/* ================= LIGAÇÃO COM O SERVIDOR (Etapa 4) ================= */
+function descricaoAparelho(){var u=navigator.userAgent||"",so=/iPhone|iPad|iPod/.test(u)?"iPhone/iPad":/Android/.test(u)?"Android":/Windows/.test(u)?"Windows":/Mac/.test(u)?"Mac":"Outro",nav=/Edg\//.test(u)?"Edge":/CriOS|Chrome\//.test(u)?"Chrome":/Firefox|FxiOS/.test(u)?"Firefox":/Safari\//.test(u)?"Safari":"navegador";return so+" · "+nav+(window.matchMedia&&matchMedia("(display-mode: standalone)").matches?" · app instalado":"")}
+function pedirCodigo(){var L=S.login,em=String(L.email||"").trim().toLowerCase();L.err="";
+ if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){L.err="Digite um e-mail válido.";render();return}
+ L.email=em;render();
+ chamarServidor("acesso.pedirCodigo",{email:em},{grava:true}).then(function(){var nova=L.step==="code";L.step="code";L.codigo="";L.err="";render();if(nova)toast("Enviamos um novo código, se o e-mail estiver cadastrado.");setTimeout(function(){var i=document.getElementById("lg-codigo");if(i)i.focus()},50)},function(e){L.err=e.mensagem;render()})}
+function entrarComCodigo(){var L=S.login,cod=soDig(L.codigo);L.err="";
+ if(cod.length!==6){L.err="Digite os 6 números do código.";render();return}
+ chamarServidor("acesso.entrar",{email:L.email,codigo:cod,aparelho:descricaoAparelho()},{grava:true}).then(function(d){salvarToken(d.token);entrarReal(d);toast("Olá, "+String(d.nome||"").split(" ")[0]+"! Você entrou no app.")},function(e){L.err=e.mensagem;if(e.codigo==="CODIGO_BLOQUEADO")L.codigo="";render()})}
+function entrarReal(eu){
+ var perf=eu.perfil,role=perf==="morador"?"morador":perf==="portaria"?"portaria":"sindico";
+ S.real=eu;S.usuarios=S.usuarios.filter(function(u){return u.id!=="real"});
+ if(role!=="portaria"){S.usuarios.push({id:"real",apto:eu.unidade||"",nome:eu.nome,email:eu.email||"",tel:"",wa:false,perfil:perf,vinculo:eu.vinculo||"",sit:"Ativo",avEmail:true});S.me[role]="real"}
+ S.role=role;S.ui={};S.porteiro=null;S.lf=null;S.nr=null;S.cad=null;S.login={step:"email",email:"",codigo:"",err:""};
+ go(role==="morador"?"inicio":role==="portaria"?"enc":"painel");
+ if(role==="sindico"){S.solicitacoes=[];S.srvMor={};carregarPedidos()}
+ if(role==="morador"){S.meusPedidos=[];carregarMeusPedidos()}
+ render()}
+function sairLocal(){apagarToken();S.real=null;S.usuarios=S.usuarios.filter(function(u){return u.id!=="real"});S.role=null;S.screen=null;S.sheet=null;S.login={step:"email",email:"",codigo:"",err:""}}
+window.aoPerderSessao=function(msg){if(!S.real)return;sairLocal();toast(msg||"Entre novamente para continuar.");render()};
+function carregarPedidos(){return chamarServidor("cadastro.listar",{},{silencioso:true}).then(function(l){var lista=[];S.srvMor={};
+ l.forEach(function(g){S.srvMor[g.pedido]=g.moradores||[];g.pessoas.forEach(function(p){lista.push({id:p.id,pedido:g.pedido,origem:g.origem,solicitante:g.solicitante,apto:g.unidade,criado:g.criadoEm,nome:p.nome,email:p.email,tel:p.telefone||"",semTel:!!p.semTelefone,vinc:p.vinculo,wa:!!p.whatsapp,status:p.status,decididoPor:p.decididoPor,decididoEm:p.decididoEm,motivo:p.motivoInterno,alertas:p.alertas||[]})})});
+ S.solicitacoes=lista;render()},function(e){toast(e.mensagem);render()})}
+function carregarMeusPedidos(){return chamarServidor("cadastro.meusPedidos",{},{silencioso:true}).then(function(l){S.meusPedidos=l||[];render()},function(){})}
+function solPorId(id){return S.solicitacoes.filter(function(y){return String(y.id)===String(id)})[0]}
+function msgBoasVindas(st,email){return st==="enviado"?"Enviamos o e-mail de boas-vindas para "+email+".":st==="invalido"?"O e-mail "+email+" parece inválido: confira o cadastro.":"O e-mail de boas-vindas para "+email+" sai assim que houver cota de e-mails."}
+function aprovarReal(lista){var ok=[],er=[],ultimo="";
+ var seq=lista.reduce(function(p,x){return p.then(function(){var E=(S.ui.solEd&&S.ui.solEd[x.id])||{nome:x.nome,email:x.email,tel:x.tel,vinc:x.vinc};
+  return chamarServidor("cadastro.aprovar",{id:x.id,nome:E.nome,email:E.email,telefone:E.tel,vinculo:E.vinc},{grava:true}).then(function(d){ok.push(d.nome);ultimo=msgBoasVindas(d.email_boasvindas,d.email)},function(e){er.push(x.nome+": "+e.mensagem)})})},Promise.resolve());
+ return seq.then(function(){S.ui.okSol=ok.length?(ok.length===1?ok[0]+" aprovado(a). "+ultimo:ok.length+" pessoas aprovadas: "+ok.join(", ")+". Os e-mails de boas-vindas foram enviados ou estão na fila."):"";if(er.length)toast(er.join(" "));return carregarPedidos()})}
+function retomarSessao(){try{if(!localStorage.getItem("marapendi.token."+(CFG.ambiente||"X")))return}catch(e){return}
+ chamarServidor("sessao.eu",{}).then(function(eu){if(!S.role)entrarReal(eu)},function(){})}
+
 function testarConexao(){
  S.conexao={st:"testando"};render();
  chamarServidor("sistema.ping",{},{silencioso:true}).then(function(d){
@@ -1297,4 +1336,5 @@ function testarConexao(){
 }
 render();
 testarConexao();
+retomarSessao();
 })();

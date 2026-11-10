@@ -204,3 +204,4 @@ textarea.in{padding:10px 14px;min-height:84px;resize:vertical}
 @media (prefers-reduced-motion: reduce){#carregando i{animation:none;left:0;width:100%;opacity:.6}}
 #atualizar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(88px + env(safe-area-inset-bottom,0px));z-index:95;border:0;border-radius:999px;padding:12px 18px;min-height:44px;background:var(--sea);color:var(--on-sea);font:inherit;font-weight:800;box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:calc(100% - 32px)}
 #atualizar[hidden]{display:none}
+.otp1{font-size:28px;font-weight:800;letter-spacing:.35em;text-align:center;font-variant-numeric:tabular-nums}
