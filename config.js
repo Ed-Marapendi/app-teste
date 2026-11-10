@@ -5,7 +5,7 @@
  */
 window.APP_CONFIG = {
   ambiente: 'TESTE',
-  versao: '0.5.0',
+  versao: '0.6.0',
   servidor: 'https://script.google.com/macros/s/AKfycbwAq4ErLAHRnJIEwcCNjHWemnYSWByqb7bbZz0OP7knfhTCd6FMtdBLPr4ZKixFooRXvA/exec',
   // true = as telas usam os dados de exemplo do protótipo. Cada etapa seguinte liga uma parte ao servidor real.
   modoExemplo: true,

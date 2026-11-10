@@ -2,7 +2,7 @@
 "use strict";
 var LOGO = "logo.jpg";
 var CFG = window.APP_CONFIG || {};
-var TODAY = "2026-10-21";
+var TODAY = "2026-10-21";   // data dos dados de exemplo; ao entrar de verdade vira a data de hoje
 
 /* ---------- utilidades ---------- */
 function pad(n){return String(n).padStart(2,"0")}
@@ -702,7 +702,7 @@ function pRegistrar(){
  h+='<button class="btn out" data-a="pAddItem">+ Adicionar outra encomenda</button></section>';
  var n=f.itens.length;
  h+='<button class="btn block" data-a="pRegistrar">'+(n>1?"Registrar "+n+" encomendas":"Registrar encomenda")+'</button><p class="xs muted" style="margin-top:-6px">O morador recebe um único aviso com todas. Se chegar outra depois de registrar, faça um novo registro.</p>';
- if(S.ui.okReg){var le=S.encomendas.filter(function(x){return x.id===S.ui.lastEnc})[0],wd=le?waDest(le.apto):[];
+ if(S.ui.okReg){var le=encPorId(S.ui.lastEnc),wd=le?waDest(le.apto):[];
   h+='<div class="okmsg stack" role="status"><span>'+esc(S.ui.okReg)+'</span>'+(le&&S.cfg.waAtivo?(le.waEm?'<span class="small">'+ic("check",16)+' WhatsApp enviado '+esc(le.waEm)+'</span>':wd.length?'<button class="btn wa" data-a="waAbrir" data-v="'+le.id+'">'+ic("wa",20)+'Avisar no WhatsApp</button>':'<span class="small" style="font-weight:500">Ninguém do apto '+le.apto+' autorizou aviso por WhatsApp.</span>'):'')+'</div>'}
  return h+'</main>';
 }
@@ -740,7 +740,7 @@ function sPainel(){
  var ag=S.reservas.filter(function(r){return r.status==="aguardando"}),pend=S.encomendas.filter(function(e){return e.status==="pendente"}),fal=pend.filter(function(e){return e.aviso!=="email"});
  var prox=S.reservas.filter(function(r){return r.data>=TODAY&&r.data<=addDays(TODAY,30)&&ativa(r)}).length;
  var velhas=pend.filter(function(e){return (s2d(TODAY)-s2d(e.data))/86400000>=S.cfg.lembrete}).length;
- var h='<main class="wrap page">'+(S.real&&CFG.modoExemplo?'<div class="note">'+ic("info",20)+'<span>Ambiente de TESTE. Já usam o servidor de verdade: entrada, pedidos de cadastro, usuários, unidades fora do padrão e configurações. O resto ainda mostra dados de exemplo.</span></div>':'')+'<div class="kpis">'+
+ var h='<main class="wrap page">'+(S.real&&CFG.modoExemplo?'<div class="note">'+ic("info",20)+'<span>Ambiente de TESTE. Já usam o servidor de verdade: entrada, pedidos de cadastro, usuários, unidades, configurações, encomendas e portaria. Reservas, locação, relatórios e auditoria ainda mostram dados de exemplo.</span></div>':'')+'<div class="kpis">'+
  '<button class="kpi" data-a="go" data-v="reservas"><span class="k">Reservas nos próximos 30 dias</span><b>'+prox+'</b><span class="xs muted">Churrasqueira e salão</span></button>'+
  '<button class="kpi" data-a="go" data-v="reservas"><span class="k">Aguardando aprovação</span><b style="color:var(--warn)">'+ag.length+'</b><span class="xs muted">Espaços com aprovação manual</span></button>'+
  '<button class="kpi" data-a="go" data-v="encomendas"><span class="k">Encomendas na portaria</span><b>'+pend.length+'</b><span class="xs muted">'+velhas+' há '+S.cfg.lembrete+' dias ou mais</span></button>'+
@@ -850,7 +850,7 @@ function sEncomendas(){
  var tab=S.ui.sEncTab||"pend",st={pend:"pendente",ret:"retirada",exc:"excluida"}[tab],l=S.encomendas.filter(function(e){return e.status===st}).sort(function(a,b){return (a.data+a.hora)<(b.data+b.hora)?1:-1});
  var h='<main class="wrap page"><div class="seg"><button class="'+(tab==="pend"?"on":"")+'" data-a="sEncTab" data-v="pend">Na portaria</button><button class="'+(tab==="ret"?"on":"")+'" data-a="sEncTab" data-v="ret">Retiradas</button><button class="'+(tab==="exc"?"on":"")+'" data-a="sEncTab" data-v="exc">Excluídas</button></div>';
  if(S.ui.okEnc)h+='<div class="okmsg" role="status">'+esc(S.ui.okEnc)+'</div>';
- h+=l.length?l.map(function(e){return '<section class="card tight"><div class="row between"><b style="font-size:18px;color:var(--sea-strong)">Apto '+e.apto+'</b>'+(tab==="pend"?avisoPill(e):tab==="ret"?'<span class="pill p-ok">Retirada</span>':'<span class="pill p-off">Excluída</span>')+'</div><div class="row">'+(e.foto?'<img class="thumb" src="'+e.foto+'" alt="Foto da encomenda">':'')+'<div class="grow"><div class="small">'+esc(e.tipo)+(e.rem?" · "+esc(e.rem):"")+'</div><div class="xs muted">Chegou '+esc(quando(e.data,e.hora))+' · recebida por '+esc(e.porteiro)+' · cód. '+e.cod+'</div></div></div>'+(e.waEm?'<div class="xs" style="color:#178A45;font-weight:700">WhatsApp enviado '+esc(e.waEm)+'</div>':'')+(tab==="ret"?'<div class="xs">Retirada '+esc(e.em)+' por <b>'+esc(e.por)+'</b> · entregue por '+esc(e.entregue)+'</div>':'')+(e.editEm?'<div class="xs muted">Alterada '+esc(e.editEm)+' por '+esc(e.editPor)+'</div>':'')+
+ h+=l.length?l.map(function(e){return '<section class="card tight"><div class="row between"><b style="font-size:18px;color:var(--sea-strong)">Apto '+e.apto+'</b>'+(tab==="pend"?avisoPill(e):tab==="ret"?'<span class="pill p-ok">Retirada</span>':'<span class="pill p-off">Excluída</span>')+'</div><div class="row">'+(e.foto?'<img class="thumb" src="'+e.foto+'" alt="Foto da encomenda">':'')+'<div class="grow"><div class="small">'+(e.temFoto&&!e.foto?'<button class="btn ghost sm" style="float:right;color:var(--sea)" data-a="verFoto" data-v="'+e.id+'">'+ic("cam",16)+'Foto</button>':'')+''+esc(e.tipo)+(e.rem?" · "+esc(e.rem):"")+'</div><div class="xs muted">Chegou '+esc(quando(e.data,e.hora))+' · recebida por '+esc(e.porteiro)+' · cód. '+e.cod+'</div></div></div>'+(e.waEm?'<div class="xs" style="color:#178A45;font-weight:700">WhatsApp enviado '+esc(e.waEm)+'</div>':'')+(tab==="ret"?'<div class="xs">Retirada '+esc(e.em)+' por <b>'+esc(e.por)+'</b> · entregue por '+esc(e.entregue)+'</div>':'')+(e.editEm?'<div class="xs muted">Alterada '+esc(e.editEm)+' por '+esc(e.editPor)+'</div>':'')+
  (tab==="exc"?'<div class="xs" style="color:var(--bad);font-weight:600">Excluída '+esc(e.excEm)+' por '+esc(e.excPor)+' · motivo: '+esc(e.excMotivo)+'</div>':'<div class="row" style="gap:8px"><button class="btn out sm" data-a="encEditar" data-v="'+e.id+'">Editar</button><button class="btn ghost sm" style="color:var(--bad)" data-a="encExcluir" data-v="'+e.id+'">Excluir</button></div>')+'</section>'}).join(""):empty(tab==="exc"?"Nenhuma encomenda excluída.":"Nada por aqui.");
  return h+'<p class="xs muted">Alterações e exclusões ficam na auditoria. Ao excluir, a foto é apagada na hora.</p></main>';
 }
@@ -936,9 +936,9 @@ function sConfig(){
 function vSheet(){
  var s=S.sheet;if(!s)return "";var h="";
  function head(t){return '<div class="row between wrap"><h2 style="font-size:20px;font-weight:800">'+esc(t)+'</h2><button class="iconbtn" data-a="fechaSheet" aria-label="Fechar">'+ic("x",20)+'</button></div>'}
- if(s.t==="foto"){var e=S.encomendas.filter(function(x){return x.id===s.id})[0];
+ if(s.t==="foto"){var e=encPorId(s.id);
   h=head(e.tipo+" · "+(e.rem||"sem remetente"))+'<div class="wrap stack g12"><div class="photo">'+(e.foto?'<img src="'+e.foto+'" alt="Foto da encomenda">':'<div class="stack" style="align-items:center;text-align:center;padding:20px">'+ic("box",48)+'<span class="small">A portaria não tirou foto desta encomenda.</span></div>')+'</div><p class="xs muted">A foto fica guardada em pasta privada e só aparece para moradores desta unidade e para a administração.</p></div>';}
- else if(s.t==="retirada"){var e2=S.encomendas.filter(function(x){return x.id===s.id})[0],mor=moradoresDe(e2.apto),f=S.f;
+ else if(s.t==="retirada"){var e2=encPorId(s.id),mor=moradoresDe(e2.apto),f=S.f;
   h=head("Registrar retirada")+'<div class="wrap stack g12"><div class="small">Apto <b>'+e2.apto+'</b> · '+esc(e2.tipo)+(e2.rem?" · "+esc(e2.rem):"")+'<div class="xs muted">Chegou '+esc(quando(e2.data,e2.hora))+'</div></div>'+
   '<div class="fld"><span class="lbl">Quem está retirando?</span><div class="chips">'+mor.map(function(m){return '<button class="chip'+(f.quem===m.nome?" on":"")+'" data-a="fQuem" data-v="'+esc(m.nome)+'">'+esc(m.nome)+'</button>'}).join("")+'<button class="chip'+(f.quem==="__outra"?" on":"")+'" data-a="fQuem" data-v="__outra">Outra pessoa</button></div></div>'+
   (f.quem==="__outra"?'<div class="fld"><label class="lbl" for="r-outra">Nome de quem retirou</label><input id="r-outra" class="in" data-bind="f.outra" value="'+esc(f.outra||"")+'" placeholder="Ex.: Ana (diarista)"></div>':'')+
@@ -954,7 +954,7 @@ function vSheet(){
   h=head("Privacidade e meus dados")+'<div class="wrap stack g12"><p class="small">O app guarda só o necessário: nome, e-mail, telefone opcional, apartamento, reservas, convidados e encomendas da sua unidade.</p><p class="small">Moradores de outras unidades não veem seus dados. Fotos e listas de convidados ficam em área restrita da administração.</p><button class="btn out block" data-a="toastMsg" data-v="No app final, a administração recebe o pedido e envia uma cópia dos seus dados por e-mail.">Pedir cópia dos meus dados</button><button class="btn ghost block" style="color:var(--bad)" data-a="toastMsg" data-v="No app final, o pedido de exclusão vai para a administração, que responde em até 15 dias.">Pedir exclusão da conta</button></div>';}
  else if(s.t==="contato"){
   h=head("Falar com a administração")+'<div class="wrap stack g12"><div class="card tight"><span class="xs muted">E-mail</span><b>administracao@edmarapendi.com.br</b><span class="xs muted">Telefone</span><b>(21) 3333-0000</b><span class="xs muted">Atendimento</span><b>Seg a sex, 9h às 17h</b></div><p class="xs muted">Contatos fictícios do protótipo.</p></div>';}
- else if(s.t==="wa"){var we=S.encomendas.filter(function(x){return x.id===s.id})[0],ds=waDest(we.apto),dest=ds.filter(function(u){return u.id===S.f.waDest})[0]||ds[0],todos=moradoresDe(we.apto);
+ else if(s.t==="wa"){var we=encPorId(s.id),ds=waDest(we.apto),dest=ds.filter(function(u){return String(u.id)===String(S.f.waDest)})[0]||ds[0],todos=moradoresDe(we.apto);
   if(S.f.waMsg==null)S.f.waMsg=waTexto(we,dest);
   if(s.stage!=="chat"){
    var meu=soDig(S.f.waTeste),link=meu.length>=10&&meu.length<=11?"https://wa.me/55"+meu+"?text="+encodeURIComponent(S.f.waMsg):"";
@@ -989,13 +989,13 @@ function vSheet(){
   '<div class="chips">'+["Não é morador da unidade","Menor de idade","Pedido duplicado","Dados não conferem"].map(function(m){return '<button class="chip" data-a="motivoRapido" data-v="'+m+'">'+m+'</button>'}).join("")+'</div>'+
   '<div class="note">'+ic("info",20)+'<span>A pessoa recebe um e-mail curto: "Seu pedido de cadastro não foi aprovado. Procure a administração."</span></div>'+
   (S.ui.errForm?'<div class="errmsg" role="alert">'+esc(S.ui.errForm)+'</div>':'')+'<button class="btn badb block" data-a="solConfRep">Reprovar</button><button class="btn ghost block" data-a="fechaSheet">Voltar</button></div>';}
- else if(s.t==="encEdit"){var ee=S.encomendas.filter(function(x){return x.id===s.id})[0],ff=S.f;
+ else if(s.t==="encEdit"){var ee=encPorId(s.id),ff=S.f;
   h=head("Editar encomenda")+'<div class="wrap stack g12"><div class="xs muted">Registrada '+esc(quando(ee.data,ee.hora))+' por '+esc(ee.porteiro)+' · cód. '+ee.cod+'</div>'+
   '<div class="fld"><label class="lbl" for="ee-apto">Unidade</label><input id="ee-apto" class="in" data-bind="f.apto" value="'+esc(ff.apto)+'" placeholder="Ex.: 807 ou COB"></div>'+
   '<div class="fld"><span class="lbl">Tipo</span><div class="chips">'+TIPOS.map(function(t){return '<button class="chip'+(ff.tipo===t?" on":"")+'" data-a="eeTipo" data-v="'+t+'">'+t+'</button>'}).join("")+'</div></div>'+
   '<div class="fld"><label class="lbl" for="ee-rem">Remetente</label><input id="ee-rem" class="in" data-bind="f.rem" value="'+esc(ff.rem||"")+'"></div>'+
   (S.ui.errForm?'<div class="errmsg" role="alert">'+esc(S.ui.errForm)+'</div>':'')+'<button class="btn block" data-a="encSalvar">Salvar alteração</button><button class="btn ghost block" data-a="fechaSheet">Cancelar</button><p class="xs muted">Se mudar a unidade, a nova unidade é avisada no app.</p></div>';}
- else if(s.t==="encExcluir"){var ex=S.encomendas.filter(function(x){return x.id===s.id})[0];
+ else if(s.t==="encExcluir"){var ex=encPorId(s.id);
   h=head("Excluir encomenda?")+'<div class="wrap stack g12"><div class="small">Apto <b>'+ex.apto+'</b> · '+esc(ex.tipo)+(ex.rem?" · "+esc(ex.rem):"")+'<div class="xs muted">Chegou '+esc(quando(ex.data,ex.hora))+'</div></div>'+
   '<div class="fld"><label class="lbl" for="ex-mot">Motivo (fica na auditoria)</label><textarea id="ex-mot" class="in" data-bind="f.motivo" placeholder="Ex.: registrada em duplicidade">'+esc(S.f.motivo||"")+'</textarea></div>'+
   '<div class="chips">'+["Registrada em duplicidade","Unidade errada","Devolvida ao remetente"].map(function(m){return '<button class="chip" data-a="motivoRapido" data-v="'+m+'">'+m+'</button>'}).join("")+'</div>'+
@@ -1041,8 +1041,11 @@ function go(sc){S.screen=sc;S.sheet=null;S.f={};S.ui.form=null;S.ui.errForm="";S
 var A={
  go:function(v){if(v==="_mais"){S.sheet={t:"mais"};return}if(v==="_sair"){A.sair();return}if(v==="locNova"&&!S.lf)S.lf=novoLf();go(v);
   if(S.real&&S.role==="sindico"&&(v==="usuarios"||v==="config"))carregarAdmin().then(function(){if(S.screen==="config"){S.f={};render()}});
-  if(S.real&&S.role==="morador"&&v==="perfil")carregarPerfil()},
- goMais:function(v){if(S.real&&S.role==="sindico"&&(v==="usuarios"||v==="config"))setTimeout(function(){carregarAdmin().then(function(){if(S.screen==="config"){S.f={};render()}})},0);go(v)},
+  if(S.real&&S.role==="morador"&&v==="perfil")carregarPerfil();
+  if(S.real&&S.role==="morador"&&(v==="inicio"||v==="encomendas"||v==="avisos")){carregarMinhasEnc();carregarAvisos()}
+  if(S.real&&S.role==="portaria"&&(v==="enc"||v==="fila"))carregarPortaria();
+  if(S.real&&S.role==="sindico"&&v==="encomendas")carregarEncAdm()},
+ goMais:function(v){if(S.real&&S.role==="sindico"&&v==="encomendas")setTimeout(carregarEncAdm,0);if(S.real&&S.role==="sindico"&&(v==="usuarios"||v==="config"))setTimeout(function(){carregarAdmin().then(function(){if(S.screen==="config"){S.f={};render()}})},0);go(v)},
  enter:function(v){var p=String(v).split(":"),role=p[0];if(p[1])S.me[role]=+p[1];S.role=role;S.ui={};S.porteiro=null;S.lf=null;S.nr=null;go(role==="morador"?"inicio":role==="portaria"?"enc":"painel")},
  escolhePorteiro:function(v){var pp=user(v);if(S.cfg.exigirPin&&(S.real?pp.temPin:pp.pin)){S.f={pinIn:""};S.ui.errForm="";S.sheet={t:"pin",id:v};return}S.porteiro=v;S.portLast=Date.now();toast("Olá, "+pp.nome.split(" ")[0]+"! O que você registrar fica no seu nome.")},
  trocaPorteiro:function(){S.porteiro=null;S.ui.okReg="";S.ui.okRet="";S.f={};if(S.screen==="pres")S.screen="enc"},
@@ -1146,9 +1149,9 @@ var A={
  encTab:function(v){S.ui.encTab=v},
  resTab:function(v){S.ui.resTab=v},
  abrirRes:function(v){go("reserva");S.ui.resId=+v},
- abrirAviso:function(v){var n=S.notifs.filter(function(x){return x.id===+v})[0];n.lida=true;if(n.ir==="perfil"){go("perfil");return}if(n.ir==="encomendas"){go("encomendas");S.ui.encTab="pend"}else A.minhasRes()},
- lerTudo:function(){var u=me();S.notifs.forEach(function(n){if(n.apto===u.apto)n.lida=true})},
- verFoto:function(v){S.sheet={t:"foto",id:+v}},
+ abrirAviso:function(v){var n=S.notifs.filter(function(x){return String(x.id)===String(v)})[0];if(S.real&&!n.lida)chamarServidor("avisos.marcarLido",{id:n.id},{grava:true,silencioso:true}).catch(function(){});n.lida=true;if(n.ir==="perfil"){go("perfil");return}if(n.ir==="encomendas"){go("encomendas");S.ui.encTab="pend"}else A.minhasRes()},
+ lerTudo:function(){var u=me();S.notifs.forEach(function(n){if(n.apto===u.apto&&!n.lida){if(S.real)chamarServidor("avisos.marcarLido",{id:n.id},{grava:true,silencioso:true}).catch(function(){});n.lida=true}})},
+ verFoto:function(v){var ef=encPorId(v);if(S.real&&ef&&ef.temFoto&&!ef.foto){chamarServidor("encomendas.foto",{id:v}).then(function(d){ef.foto=d.foto;S.sheet={t:"foto",id:v};render()},function(e){toast(e.mensagem);render()});return}S.sheet={t:"foto",id:v}},
  nrArea:function(v){S.nr.area=v;S.nr.data=null;S.nr.turno=null},
  nrMes:function(v){var N=S.nr,m=N.m+ +v,y=N.y;if(m<0){m=11;y--}if(m>11){m=0;y++}var k=y*12+m;if(k<2026*12+9||k>2027*12+0)return;N.m=m;N.y=y},
  nrDia:function(v){var a=area(S.nr.area);if(diaStatus(a,v)!=="livre")return;S.nr.data=v;S.nr.turno=null},
@@ -1175,24 +1178,26 @@ var A={
  pTiraFoto:function(v){S.f.itens[+v].foto=null},
  pAddItem:function(){S.f.itens.push(novoItem());S.ui.okReg=""},
  pRemItem:function(v){S.f.itens.splice(+v,1)},
- pRegistrar:function(){var f=S.f,un=f.un,u=me(),mor=moradoresDe(un),ativos=mor.filter(function(m){return m.sit==="Ativo"}),n=f.itens.length,hora=hhmm(),lote=n>1?uid():null,ids=[],cods=[];
+ pRegistrar:function(){if(S.real){registrarReal();return}var f=S.f,un=f.un,u=me(),mor=moradoresDe(un),ativos=mor.filter(function(m){return m.sit==="Ativo"}),n=f.itens.length,hora=hhmm(),lote=n>1?uid():null,ids=[],cods=[];
   var aviso=!ativos.length?"invalido":ativos.some(function(m){return m.avEmail!==false})?"email":"app";
   f.itens.forEach(function(it,i){var e={id:uid()+i,apto:un,tipo:it.tipo,rem:(it.rem||"").trim(),data:TODAY,hora:hora,porteiro:u.nome,cod:codigo(),status:"pendente",aviso:aviso,foto:it.foto||null,lote:lote};S.encomendas.push(e);ids.push(e.id);cods.push(e.cod)});
   var desc=f.itens.map(function(it){return it.tipo+(it.rem.trim()?" ("+it.rem.trim()+")":"")}).join(", ");
   notify(un,n>1?n+" encomendas chegaram na portaria: "+desc+".":desc+" chegou na portaria.","encomendas");audit(n>1?"Registrou encomendas":"Registrou encomenda",unLabel(un)+" · "+desc);
   S.ui.lastEnc=ids[0];S.ui.okReg=(n>1?n+" encomendas registradas":"Registrada")+" para "+unLabel(un)+" às "+hora+" (código"+(n>1?"s ":" ")+cods.join(", ")+"). "+(mor.length?"O morador já vê o aviso no app"+(aviso==="email"?" e vai receber um e-mail.":"."):"Unidade sem cadastro: avise por interfone.");
   f.itens=[novoItem()]},
- pRetirada:function(v){S.f={quem:"",outra:""};var e=S.encomendas.filter(function(x){return x.id===+v})[0];var m=moradoresDe(e.apto);if(m.length)S.f.quem=m[0].nome;S.sheet={t:"retirada",id:+v};S.ui.okRet=""},
+ pRetirada:function(v){S.f={quem:"",outra:""};var e=encPorId(v);var m=moradoresDe(e.apto);if(m.length)S.f.quem=m[0].nome;S.sheet={t:"retirada",id:v};S.ui.okRet=""},
  fQuem:function(v){S.f.quem=v},
- waAbrir:function(v){var e=S.encomendas.filter(function(x){return x.id===+v})[0],ds=waDest(e.apto);Object.assign(S.f,{waDest:ds[0]&&ds[0].id,waMsg:null,waTeste:""});S.ui.waDet=false;S.sheet={t:"wa",id:+v,stage:"prev"}},
- waDest:function(v){var e=S.encomendas.filter(function(x){return x.id===S.sheet.id})[0];S.f.waDest=+v;S.f.waMsg=waTexto(e,user(+v))},
+ waAbrir:function(v){var e=encPorId(v),ds=waDest(e.apto);Object.assign(S.f,{waDest:ds[0]&&ds[0].id,waMsg:null,waTeste:""});S.ui.waDet=false;S.sheet={t:"wa",id:v,stage:"prev"}},
+ waDest:function(v){var e=encPorId(S.sheet.id);S.f.waDest=v;S.f.waMsg=waTexto(e,user(v))},
  waChat:function(){if(!String(S.f.waMsg||"").trim()){toast("A mensagem está vazia.");return}S.sheet.stage="chat"},
  waDet:function(){S.ui.waDet=!S.ui.waDet},
  waEditar:function(){S.sheet.stage="prev"},
- waEnviar:function(){var e=S.encomendas.filter(function(x){return x.id===S.sheet.id})[0],ds=waDest(e.apto),dest=ds.filter(function(u){return u.id===S.f.waDest})[0]||ds[0];
+ waEnviar:function(){var e=encPorId(S.sheet.id),ds=waDest(e.apto),dest=ds.filter(function(u){return String(u.id)===String(S.f.waDest)})[0]||ds[0];
+  if(S.real)chamarServidor("encomendas.registrarWhatsApp",{porteiroId:S.porteiro,id:e.id,para:dest.id},{grava:true,silencioso:true}).then(function(d){mesclarEnc(d.encomendas.map(encDoServidor));render()},function(er){toast(er.mensagem);render()});
   S.sheet.sent=true;S.sheet.hora=hhmm();loteDe(e).forEach(function(x){x.waEm="Hoje "+S.sheet.hora+" · para "+dest.nome.split(" ")[0]});audit("Avisou no WhatsApp","Apto "+e.apto+" · "+e.tipo+" · para "+dest.nome)},
  waVoltar:function(){S.sheet=null;delete S.f.waDest;delete S.f.waMsg;delete S.f.waTeste;toast("Aviso por WhatsApp registrado.")},
- pConfRet:function(){if(!S.f.quem||(S.f.quem==="__outra"&&!(S.f.outra||"").trim())){S.ui.errForm="Informe quem está retirando.";return}S.ui.errForm="";var e=S.encomendas.filter(function(x){return x.id===S.sheet.id})[0],f=S.f,quem=f.quem==="__outra"?f.outra.trim():f.quem,u=me();
+ pConfRet:function(){if(!S.f.quem||(S.f.quem==="__outra"&&!(S.f.outra||"").trim())){S.ui.errForm="Informe quem está retirando.";return}S.ui.errForm="";var e=encPorId(S.sheet.id),f=S.f,quem=f.quem==="__outra"?f.outra.trim():f.quem,u=me();
+  if(S.real){if(S.ui.ocupado)return;S.ui.ocupado=true;chamarServidor("encomendas.retirar",{porteiroId:S.porteiro,id:e.id,retiradaPor:quem},{grava:true}).then(function(d){var x=encDoServidor(d);mesclarEnc([x]);S.sheet=null;S.f={};S.portLast=Date.now();S.ui.okRet="Retirada do apto "+x.apto+" registrada às "+d.retiradaHora+" (retirado por "+quem+").";render()},function(er){S.ui.errForm=er.mensagem;render()}).finally(function(){S.ui.ocupado=false});return}
   e.status="retirada";e.por=quem;e.em="Hoje "+hhmm();e.entregue=u.nome;S.sheet=null;
   audit("Registrou retirada","Apto "+e.apto+" · "+e.tipo+" · retirado por "+quem);
   S.ui.okRet="Retirada do apto "+e.apto+" registrada às "+hhmm()+" (retirado por "+quem+").";S.f={}},
@@ -1246,14 +1251,16 @@ var A={
   else{S.usuarios.push(Object.assign({id:uid(),sit:o.perfil==="porteiro"?"Ativo":"Convite pendente"},o));audit("Cadastrou usuário",o.nome+" · "+PERFIS[o.perfil][0]+(o.apto?" · apto "+o.apto:""));S.ui.okUser=o.perfil==="porteiro"?o.nome+" cadastrado(a) como porteiro. O nome já aparece no celular da portaria.":o.nome+" cadastrado(a) como "+PERFIS[o.perfil][0]+". O convite foi enviado para "+o.email+"."}
   S.ui.usrTab=o.perfil==="morador"?"moradores":"equipe";S.ui.form=null;S.f={}},
  sEncTab:function(v){S.ui.sEncTab=v;S.ui.okEnc=""},
- encEditar:function(v){var e=S.encomendas.filter(function(x){return x.id===+v})[0];S.f={apto:e.apto,tipo:e.tipo,rem:e.rem};S.ui.errForm="";S.sheet={t:"encEdit",id:+v}},
+ encEditar:function(v){var e=encPorId(v);S.f={apto:e.apto,tipo:e.tipo,rem:e.rem};S.ui.errForm="";S.sheet={t:"encEdit",id:v}},
  eeTipo:function(v){S.f.tipo=v},
- encSalvar:function(){var e=S.encomendas.filter(function(x){return x.id===S.sheet.id})[0],f=S.f;if(!aptoValido(f.apto)){S.ui.errForm="Unidade inexistente. Use o número (ex.: 807) ou a identificação (ex.: COB).";return}
+ encSalvar:function(){var e=encPorId(S.sheet.id),f=S.f;if(!aptoValido(f.apto)){S.ui.errForm="Unidade inexistente. Use o número (ex.: 807) ou a identificação (ex.: COB).";return}
+  if(S.real){chamarServidor("encomendas.editar",{id:e.id,unidade:f.apto,tipo:f.tipo,remetente:f.rem||""},{grava:true}).then(function(d){var x=encDoServidor(d.encomenda);mesclarEnc([x]);S.ui.okEnc="Encomenda alterada."+(d.unidadeAvisada?" O apto "+x.apto+" foi avisado.":"");S.sheet=null;S.f={};S.ui.errForm="";render()},function(er){S.ui.errForm=er.mensagem;render()});return}
   S.ui.errForm="";var antes="apto "+e.apto+" · "+e.tipo+(e.rem?" · "+e.rem:""),novo=aptoNorm(f.apto),mudou=novo!==e.apto;e.apto=novo;e.tipo=f.tipo;e.rem=(f.rem||"").trim();e.editEm=quandoAgora();e.editPor=me().nome;
   if(mudou&&e.status==="pendente")notify(novo,e.tipo+(e.rem?" ("+e.rem+")":"")+" chegou na portaria.","encomendas");
   audit("Alterou encomenda","Antes: "+antes+" · agora: apto "+e.apto+" · "+e.tipo+(e.rem?" · "+e.rem:""));S.ui.okEnc="Encomenda alterada."+(mudou?" O apto "+novo+" foi avisado.":"");S.sheet=null;S.f={}},
- encExcluir:function(v){S.f={motivo:""};S.ui.errForm="";S.sheet={t:"encExcluir",id:+v}},
- encConfExcluir:function(){var e=S.encomendas.filter(function(x){return x.id===S.sheet.id})[0],m=(S.f.motivo||"").trim();if(!m){S.ui.errForm="Informe o motivo. Ele fica registrado na auditoria.";return}
+ encExcluir:function(v){S.f={motivo:""};S.ui.errForm="";S.sheet={t:"encExcluir",id:v}},
+ encConfExcluir:function(){var e=encPorId(S.sheet.id),m=(S.f.motivo||"").trim();if(!m){S.ui.errForm="Informe o motivo. Ele fica registrado na auditoria.";return}
+  if(S.real){chamarServidor("encomendas.excluir",{id:e.id,motivo:m},{grava:true}).then(function(d){var x=encDoServidor(d.encomenda);mesclarEnc([x]);S.ui.okEnc="Encomenda do apto "+x.apto+" excluída"+(d.fotoApagada?" e foto apagada":"")+".";S.sheet=null;S.f={};S.ui.errForm="";render()},function(er){S.ui.errForm=er.mensagem;render()});return}
   S.ui.errForm="";var tf=!!e.foto;e.status="excluida";e.excMotivo=m;e.excPor=me().nome;e.excEm=quandoAgora();e.foto=null;
   audit("Excluiu encomenda","Apto "+e.apto+" · "+e.tipo+" · motivo: "+m+(tf?" · foto apagada":""));S.ui.okEnc="Encomenda do apto "+e.apto+" excluída"+(tf?" e foto apagada":"")+".";S.sheet=null;S.f={}},
  fAvEmail:function(){S.f.avEmail=S.f.avEmail===false},
@@ -1320,9 +1327,10 @@ function entrarReal(eu){
  if(role!=="portaria"){S.usuarios.push({id:"real",apto:eu.unidade||"",nome:eu.nome,email:eu.email||"",tel:"",wa:false,perfil:perf,vinculo:eu.vinculo||"",sit:"Ativo",avEmail:true});S.me[role]="real"}
  S.role=role;S.ui={};S.porteiro=null;S.lf=null;S.nr=null;S.cad=null;S.login={step:"email",email:"",codigo:"",err:""};
  go(role==="morador"?"inicio":role==="portaria"?"enc":"painel");
- if(role==="sindico"){S.solicitacoes=[];S.srvMor={};carregarPedidos();carregarAdmin()}
- if(role==="morador"){S.meusPedidos=[];S.perfilSrv=null;carregarMeusPedidos();carregarPerfil()}
- if(role==="portaria")carregarPorteiros()
+ TODAY=hojeLocal();
+ if(role==="sindico"){S.solicitacoes=[];S.srvMor={};S.encomendas=[];carregarPedidos();carregarAdmin();carregarEncAdm()}
+ if(role==="morador"){S.meusPedidos=[];S.perfilSrv=null;S.encomendas=[];S.notifs=[];carregarMeusPedidos();carregarPerfil();carregarMinhasEnc();carregarAvisos()}
+ if(role==="portaria"){S.encomendas=[];carregarPortaria()}
  render()}
 function sairLocal(){apagarToken();S.real=null;S.usuarios=S.usuarios.filter(function(u){return u.id!=="real"});S.role=null;S.screen=null;S.sheet=null;S.login={step:"email",email:"",codigo:"",err:""}}
 window.aoPerderSessao=function(msg){if(!S.real)return;sairLocal();toast(msg||"Entre novamente para continuar.");render()};
@@ -1343,6 +1351,27 @@ function salvarPerfil(dados,msg){chamarServidor("perfil.salvar",dados,{grava:tru
 function carregarPorteiros(){return chamarServidor("portaria.porteiros",{},{silencioso:true}).then(function(d){
  S.usuarios=S.usuarios.filter(function(u){return u.perfil!=="porteiro"}).concat(d.porteiros.map(function(p){return {id:p.id,nome:p.nome,turno:p.turno||"",perfil:"porteiro",sit:"Ativo",temPin:!!p.temPin,apto:"",email:""}}));
  S.cfg.exigirPin=!!d.exigirPin;S.cfg.portRelogin=d.reloginMin||S.cfg.portRelogin;render()},function(e){toast(e.mensagem);render()})}
+function hojeLocal(){var d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function encPorId(id){return S.encomendas.filter(function(x){return String(x.id)===String(id)})[0]}
+function encDoServidor(e){return {id:e.id,lote:e.lote||null,apto:e.unidade,tipo:e.tipo,rem:e.remetente||"",data:e.data,hora:e.hora,porteiro:e.porteiro||"",cod:e.codigo,status:e.status,
+ aviso:{enviado:"email",cota:"cota",invalido:"invalido"}[e.avisoEmail]||"app",foto:null,temFoto:!!e.temFoto,waEm:e.waEm||"",por:e.retiradaPor||"",em:e.retiradaData?quando(e.retiradaData,e.retiradaHora):"",entregue:e.entreguePor||"",
+ editEm:e.editadoEm||"",editPor:e.editadoPor||"",excEm:e.excluidaEm||"",excPor:e.excluidaPor||"",excMotivo:e.motivoExclusao||""}}
+function mesclarEnc(lista){lista.forEach(function(x){var i=-1;S.encomendas.forEach(function(y,k){if(String(y.id)===String(x.id))i=k});if(i>=0){x.foto=S.encomendas[i].foto||x.foto;S.encomendas[i]=x}else S.encomendas.unshift(x)})}
+function carregarPortaria(){return chamarServidor("portaria.carregar",{},{silencioso:true}).then(function(d){
+ S.usuarios=d.porteiros.map(function(p){return {id:p.id,nome:p.nome,turno:p.turno||"",perfil:"porteiro",sit:"Ativo",temPin:!!p.temPin,apto:"",email:""}}).concat(d.moradores.map(function(m){return {id:m.id,nome:m.nome,apto:m.unidade,perfil:"morador",vinculo:m.vinculo||"",sit:m.situacao,wa:!!m.whatsapp,tel:m.telefone||"",email:""}}));
+ S.extras=d.extras.map(function(x){return {num:x.unidade,nome:x.nome,tipo:"residencial",local:"",encomendas:true,reservas:false,ativo:true}});
+ S.encomendas=d.encomendas.map(encDoServidor);
+ S.cfg.exigirPin=!!d.exigirPin;S.cfg.portRelogin=d.reloginMin||S.cfg.portRelogin;S.cfg.waAtivo=!!d.waAtivo;if(d.waModelo)S.cfg.waModelo=d.waModelo;S.cfg.lembrete=d.lembreteDias||S.cfg.lembrete;
+ if(S.porteiro&&!user(S.porteiro))S.porteiro=null;render()},function(e){toast(e.mensagem);render()})}
+function msgAvisoEnc(av,nMor){if(!nMor)return "Unidade sem morador cadastrado: avise por interfone.";return av==="enviado"?"Os moradores já veem o aviso no app e receberam um e-mail.":av==="cota"?"Os moradores já veem o aviso no app. O e-mail sai assim que houver cota.":av==="invalido"?"Os moradores já veem o aviso no app. O e-mail cadastrado parece inválido.":"Os moradores já veem o aviso no app."}
+function registrarReal(){var f=S.f,un=f.un,n=f.itens.length;if(S.ui.ocupado)return;S.ui.ocupado=true;S.ui.okReg="";
+ chamarServidor("encomendas.registrar",{porteiroId:S.porteiro,unidade:un,itens:f.itens.map(function(i){return {tipo:i.tipo,remetente:(i.rem||"").trim(),foto:i.foto||""}})},{grava:true}).then(function(d){
+  var l=d.encomendas.map(encDoServidor);mesclarEnc(l);S.ui.lastEnc=l[0].id;S.portLast=Date.now();
+  S.ui.okReg=(n>1?n+" encomendas registradas":"Registrada")+" para "+unLabel(un)+" às "+l[0].hora+" (código"+(n>1?"s ":" ")+l.map(function(x){return x.cod}).join(", ")+"). "+msgAvisoEnc(d.avisoEmail,d.moradores);
+  f.itens=[novoItem()];render()},function(e){toast(e.mensagem);render()}).finally(function(){S.ui.ocupado=false})}
+function carregarMinhasEnc(){return chamarServidor("encomendas.minhas",{},{silencioso:true}).then(function(l){S.encomendas=l.map(encDoServidor);render()},function(){})}
+function carregarAvisos(){return chamarServidor("avisos.listar",{},{silencioso:true}).then(function(l){var ap=(me()||{}).apto;S.notifs=l.map(function(a){return {id:a.id,apto:ap,txt:a.texto,q:a.criadoEm,lida:!!a.lido,ir:a.destino||""}});render()},function(){})}
+function carregarEncAdm(){return chamarServidor("encomendas.listar",{},{silencioso:true}).then(function(l){S.encomendas=l.map(encDoServidor);render()},function(e){toast(e.mensagem);render()})}
 function solPorId(id){return S.solicitacoes.filter(function(y){return String(y.id)===String(id)})[0]}
 function msgBoasVindas(st,email){return st==="enviado"?"Enviamos o e-mail de boas-vindas para "+email+".":st==="invalido"?"O e-mail "+email+" parece inválido: confira o cadastro.":"O e-mail de boas-vindas para "+email+" sai assim que houver cota de e-mails."}
 function aprovarReal(lista){var ok=[],er=[],ultimo="";
