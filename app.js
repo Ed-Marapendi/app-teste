@@ -171,7 +171,7 @@ function area(id){return S.areas.filter(function(a){return a.id===id})[0]}
 function user(id){return S.usuarios.filter(function(u){return String(u.id)===String(id)})[0]}
 function me(){if(S.role==="portaria")return S.porteiro?user(S.porteiro):{nome:"Portaria",apto:"",perfil:"porteiro"};return user(S.me[S.role])}
 function porteirosAtivos(){return S.usuarios.filter(function(u){return u.perfil==="porteiro"&&u.sit==="Ativo"})}
-function loc(id){return S.locacoes.filter(function(l){return l.id===id})[0]}
+function loc(id){return S.locacoes.filter(function(l){return String(l.id)===String(id)})[0]}
 function locSt(l){if(l.status==="aprovada"){if(l.ate<TODAY)return "encerrada";if(l.de<=TODAY)return "andamento"}return l.status}
 function locPill(l){var m={pendente:["Aguardando análise","p-warn"],aprovada:["Aprovada","p-ok"],andamento:["Hospedagem em andamento","p-sea"],encerrada:["Encerrada","p-off"],recusada:["Recusada","p-bad"],cancelada:["Cancelada","p-off"]}[locSt(l)];return '<span class="pill '+m[1]+'">'+m[0]+'</span>'}
 function noites(de,ate){return Math.round((s2d(ate)-s2d(de))/86400000)}
@@ -560,12 +560,18 @@ function locDetalhe(l,adm){
  var base="L."+l.id;
  var h='<section class="card"><h2 class="h2">Período</h2><div class="g2"><div><div class="xs muted">Entrada</div><b>'+fmtD(l.de)+'</b></div><div><div class="xs muted">Saída</div><b>'+fmtD(l.ate)+'</b></div></div><div class="small muted">'+noites(l.de,l.ate)+(noites(l.de,l.ate)===1?" noite":" noites")+' · '+esc(l.plataforma)+'</div></section>';
  h+='<section class="card"><div class="row between"><h2 class="h2">Hóspedes</h2><span class="pill p-sea">'+l.pessoas.length+'</span></div>'+l.pessoas.map(function(p,i){
-  return '<div class="stack" style="gap:6px;border-top:'+(i?"1px solid var(--line)":"0")+';padding-top:'+(i?"12px":"0")+'"><b>'+esc(p.nome)+'</b><div class="g2 small"><div><span class="xs muted">RG</span><br>'+esc(adm?p.rg:maskRg(p.rg))+'</div><div><span class="xs muted">CPF</span><br>'+esc(adm?fmtCpf(p.cpf):maskCpf(p.cpf))+'</div></div>'+(p.doc?docThumb(p.doc,base+".p."+i):'<span class="xs" style="color:var(--bad)">Sem documento anexado</span>')+'</div>'}).join("")+'</section>';
- h+='<section class="card"><h2 class="h2">Veículo</h2>'+(l.semCarro||!l.veiculos.length?'<p class="small muted">Os hóspedes não vão trazer carro.</p>':l.veiculos.map(function(v,i){return '<div class="stack" style="gap:6px"><div class="row">'+ic("car",22)+'<b style="letter-spacing:.06em">'+esc(v.placa.toUpperCase())+'</b><span class="small muted">'+esc(v.modelo)+'</span></div>'+(v.doc?docThumb(v.doc,base+".v."+i):'')+'</div>'}).join(""))+'</section>';
- h+='<section class="card tight"><h2 class="h2">Informações</h2><div class="small"><span class="muted">Solicitado por </span><b>'+esc(l.por)+'</b> · '+esc(l.criado)+'</div><div class="small"><span class="muted">Contato </span>'+esc(l.contato||"—")+'</div>'+(l.obs?'<div class="small"><span class="muted">Observações </span>'+esc(l.obs)+'</div>':'')+'</section>';
+  return '<div class="stack" style="gap:6px;border-top:'+(i?"1px solid var(--line)":"0")+';padding-top:'+(i?"12px":"0")+'"><b>'+esc(p.nome)+'</b><div class="g2 small"><div><span class="xs muted">RG</span><br>'+esc(adm||S.real?p.rg:maskRg(p.rg))+'</div><div><span class="xs muted">CPF</span><br>'+esc(S.real?p.cpf:adm?fmtCpf(p.cpf):maskCpf(p.cpf))+'</div></div>'+docLocHtml(l,p.doc,base+".p."+i,"Documento")+'</div>'}).join("")+'</section>';
+ h+='<section class="card"><h2 class="h2">Veículo</h2>'+(l.semCarro||!l.veiculos.length?'<p class="small muted">Os hóspedes não vão trazer carro.</p>':l.veiculos.map(function(v,i){return '<div class="stack" style="gap:6px"><div class="row">'+ic("car",22)+'<b style="letter-spacing:.06em">'+esc(v.placa.toUpperCase())+'</b><span class="small muted">'+esc(v.modelo)+'</span></div>'+docLocHtml(l,v.doc,base+".v."+i,"CRLV")+'</div>'}).join(""))+'</section>';
+ h+='<section class="card tight"><h2 class="h2">Informações</h2><div class="small"><span class="muted">Solicitado por </span><b>'+esc(l.por)+'</b> · '+esc(l.criado)+'</div><div class="small"><span class="muted">Contato </span>'+esc(l.contato||"—")+'</div>'+(l.obs?'<div class="small"><span class="muted">Observações </span>'+esc(l.obs)+'</div>':'')+(l.docsApagados?'<div class="small"><span class="muted">Documentos </span>apagados em '+esc(l.docsApagados)+' (prazo de guarda)</div>':'')+'</section>';
  h+='<section class="card tight"><h2 class="h2">Histórico</h2><div class="list">'+l.hist.map(function(x){return '<div class="li" style="min-height:40px;align-items:flex-start"><span class="xs muted" style="min-width:74px;padding-top:2px">'+esc(x.q)+'</span><span class="small grow">'+esc(x.t)+'</span></div>'}).join("")+'</div></section>';
  if(!adm)h+='<p class="xs muted">RG e CPF aparecem mascarados por segurança. Os documentos ficam visíveis só para a administração e o síndico e são apagados '+S.cfg.locDocsDias+' dias depois do fim da hospedagem.</p>';
  return h;
+}
+function docLocHtml(l,d,path,rot){
+ if(!S.real)return d?docThumb(d,path):(rot==="Documento"?'<span class="xs" style="color:var(--bad)">Sem documento anexado</span>':'');
+ if(d&&d.anexado)return '<span class="xs" style="color:var(--ok)">✓ '+rot+' anexado</span>';
+ if(d&&d.id)return '<button class="li" data-a="verDocLoc" data-v="'+esc(l.id+"|"+d.id)+'" style="min-height:52px;border-bottom:0;padding:4px 0"><span class="tile" style="width:56px;height:56px;background:var(--sunk);color:var(--muted)">'+ic("file",24)+'</span><span class="grow small">'+esc(d.nome)+(d.tipo==="pdf"?" (PDF)":"")+'<span class="xs" style="display:block;color:var(--sea);font-weight:700">Ver documento</span></span></button>';
+ return '<span class="xs muted">'+(l.docsApagados?rot+' apagado (prazo de guarda)':'Sem '+(rot==="CRLV"?"CRLV":"documento")+' anexado')+'</span>';
 }
 function locStatusBox(l){
  var st=locSt(l);
@@ -582,7 +588,7 @@ function locCard(l,adm){
  '<div class="xs muted">Pedido por '+esc(l.por)+' · '+esc(l.criado)+'</div></button>';
 }
 function mLoc(){
- var u=me(),l=S.locacoes.filter(function(x){return x.apto===u.apto}).sort(function(a,b){return b.id-a.id});
+ var u=me(),l=S.locacoes.filter(function(x){return x.apto===u.apto}).sort(function(a,b){return S.real?(String(b.ordem)>String(a.ordem)?1:-1):b.id-a.id});
  var h=topbar("Locação / temporada","Apartamento "+u.apto)+'<main class="wrap page">'+
  '<div class="note">'+ic("info",20)+'<span>Vai receber hóspedes que não moram no prédio (Airbnb, temporada ou empréstimo do apartamento)? Peça a autorização com pelo menos '+S.cfg.locAntMin+' dias de antecedência. A portaria só libera a entrada de quem estiver autorizado.</span></div>'+
  '<button class="btn block" data-a="locNovaBtn">'+ic("key",20)+'Nova solicitação</button>';
@@ -603,7 +609,7 @@ function mLocNova(){
   '<div class="g2"><div class="fld"><label class="lbl" for="'+id+'-rg">RG</label><input id="'+id+'-rg" class="in" autocomplete="off" data-bind="'+b+'.rg" value="'+esc(p.rg)+'"></div><div class="fld"><label class="lbl" for="'+id+'-cpf">CPF</label><input id="'+id+'-cpf" class="in" inputmode="numeric" autocomplete="off" data-bind="'+b+'.cpf" value="'+esc(p.cpf)+'" placeholder="000.000.000-00"></div></div>'+
   docField(b+".doc","Documento com foto",id+"-doc")+'</div>';
  });
- h+='<button class="btn out sm" data-a="lfAddP">+ Adicionar pessoa</button><p class="hint">Para testar, use um CPF válido, por exemplo 529.982.247-25.</p></section>';
+ h+='<button class="btn out sm" data-a="lfAddP">+ Adicionar pessoa</button>'+(!S.real||CFG.ambiente==="TESTE"?'<p class="hint">Para testar, use um CPF válido, por exemplo 529.982.247-25. Use só dados fictícios no ambiente de teste.</p>':'')+'</section>';
  h+='<section class="card"><h2 class="h2">3. Veículo</h2><button class="switchrow" data-a="lfSemCarro" aria-pressed="'+F.semCarro+'" style="border:0"><span><b style="display:block">Os hóspedes não vão trazer carro</b><span class="small muted">Desligue para informar placa e documento</span></span><span class="toggle'+(F.semCarro?" on":"")+'"><i></i></span></button>';
  if(!F.semCarro){F.veiculos.forEach(function(v,i){var b="lf.veiculos."+i,id="lf-v"+i;
   h+='<div class="card tight" style="background:var(--bg)"><div class="row between"><b>Veículo '+(i+1)+'</b>'+(F.veiculos.length>1?'<button class="btn ghost sm" style="color:var(--bad)" data-a="lfRemV" data-v="'+i+'">Remover</button>':'')+'</div>'+
@@ -753,7 +759,7 @@ function sPainel(){
  var ag=S.reservas.filter(function(r){return r.status==="aguardando"}),pend=S.encomendas.filter(function(e){return e.status==="pendente"}),fal=pend.filter(function(e){return e.aviso!=="email"});
  var prox=S.reservas.filter(function(r){return r.data>=TODAY&&r.data<=addDays(TODAY,30)&&ativa(r)}).length;
  var velhas=pend.filter(function(e){return (s2d(TODAY)-s2d(e.data))/86400000>=S.cfg.lembrete}).length;
- var h='<main class="wrap page">'+(S.real&&CFG.modoExemplo?'<div class="note">'+ic("info",20)+'<span>Ambiente de TESTE. Já usam o servidor de verdade: entrada, pedidos de cadastro, usuários, unidades, configurações, encomendas, portaria, reservas, espaços e bloqueios. Locação, relatórios e auditoria ainda mostram dados de exemplo.</span></div>':'')+'<div class="kpis">'+
+ var h='<main class="wrap page">'+(S.real&&CFG.modoExemplo?'<div class="note">'+ic("info",20)+'<span>Ambiente de TESTE. Já usam o servidor de verdade: entrada, pedidos de cadastro, usuários, unidades, configurações, encomendas, portaria, reservas, espaços, bloqueios e locação / temporada. Relatórios e auditoria ainda mostram dados de exemplo.</span></div>':'')+'<div class="kpis">'+
  '<button class="kpi" data-a="go" data-v="reservas"><span class="k">Reservas nos próximos 30 dias</span><b>'+prox+'</b><span class="xs muted">Churrasqueira e salão</span></button>'+
  '<button class="kpi" data-a="go" data-v="reservas"><span class="k">Aguardando aprovação</span><b style="color:var(--warn)">'+ag.length+'</b><span class="xs muted">Espaços com aprovação manual</span></button>'+
  '<button class="kpi" data-a="go" data-v="encomendas"><span class="k">Encomendas na portaria</span><b>'+pend.length+'</b><span class="xs muted">'+velhas+' há '+S.cfg.lembrete+' dias ou mais</span></button>'+
@@ -996,7 +1002,9 @@ function vSheet(){
    (enviado?'<div class="okmsg">Mensagem enviada para '+esc(dest.nome.split(" ")[0])+'. O envio fica registrado na encomenda.</div><button class="btn block" data-a="waVoltar">Voltar ao app da portaria</button>':'<p class="small muted" style="text-align:center">Toque no botão verde para enviar.</p><button class="btn ghost block" data-a="waEditar">Voltar e editar a mensagem</button>')+'</div>';
   }}
  else if(s.t==="doc"){var d=getPath(s.path)||{};
-  h=head(d.nome||"Documento")+'<div class="wrap stack g12"><div class="photo" style="aspect-ratio:auto;min-height:200px">'+(d.tipo==="img"?'<img src="'+d.url+'" alt="Documento anexado" style="object-fit:contain">':'<div class="stack" style="align-items:center;text-align:center;padding:30px">'+ic("file",48)+'<span class="small">Arquivo PDF anexado. No app final ele abre para visualização.</span></div>')+'</div><p class="xs muted">Documento visível só para quem enviou, para a administração e para o síndico.</p></div>';}
+  h=head(d.nome||"Documento")+'<div class="wrap stack g12"><div class="photo" style="aspect-ratio:auto;min-height:200px">'+(d.tipo==="img"?'<img src="'+d.url+'" alt="Documento anexado" style="object-fit:contain">':'<div class="stack" style="align-items:center;text-align:center;padding:30px">'+ic("file",48)+'<span class="small">Arquivo PDF anexado.</span></div>')+'</div><p class="xs muted">Documento visível só para quem enviou, para a administração e para o síndico.</p></div>';}
+ else if(s.t==="docLoc"){
+  h=head(s.nome||"Documento")+'<div class="wrap stack g12">'+(s.tipo==="img"?'<div class="photo" style="aspect-ratio:auto;min-height:200px"><img src="'+s.url+'" alt="Documento anexado" style="object-fit:contain"></div>':'<a class="btn block" href="'+s.url+'" target="_blank" rel="noopener">Abrir o documento (PDF)</a>')+'<p class="xs muted">Documento visível só para a administração e o síndico. A abertura fica registrada na auditoria.</p></div>';}
  else if(s.t==="locMotivo"){var lm=loc(s.id),rec=s.acao==="recusar";
   h=head(rec?"Recusar solicitação":s.quem==="morador"?(lm.status==="pendente"?"Cancelar solicitação":"Cancelar autorização"):"Cancelar autorização")+'<div class="wrap stack g12"><div class="small">Apto <b>'+lm.apto+'</b> · '+esc(periodo(lm))+'</div>'+
   '<div class="fld"><label class="lbl" for="loc-mot">'+(rec?"Motivo da recusa (o morador vai ver)":"Motivo"+(s.quem==="morador"?" (opcional)":" (o morador vai ver)"))+'</label><textarea id="loc-mot" class="in" data-bind="f.motivo" placeholder="'+(rec?"Ex.: documento do carro ilegível":"Ex.: hospedagem cancelada pelo hóspede")+'">'+esc(S.f.motivo||"")+'</textarea></div>'+
@@ -1049,7 +1057,10 @@ function render(){
  document.body.className=S.role?"logged r-"+S.role:"";
 }
 function onDoc(ev){var t=ev.target,file=t.files&&t.files[0],path=t.dataset.file;if(!file)return;
- if(!/^image\//.test(file.type)){setPath(path,{nome:file.name,tipo:"pdf"});render();return}
+ if(!/^image\//.test(file.type)){if(!(file.type==="application/pdf"||/\.pdf$/i.test(file.name))){toast("Anexe uma foto ou um PDF.");return}
+  if(!S.real){setPath(path,{nome:file.name,tipo:"pdf"});render();return}
+  if(file.size>3*1024*1024){toast("O PDF tem mais de 3 MB. Tire uma foto do documento em vez de enviar o PDF.");t.value="";return}
+  var rp=new FileReader();rp.onload=function(){setPath(path,{nome:file.name,tipo:"pdf",url:"data:application/pdf;base64,"+String(rp.result).split(",")[1]});render()};rp.readAsDataURL(file);return}
  var rd=new FileReader();rd.onload=function(){var img=new Image();img.onload=function(){var c=document.createElement("canvas"),k=Math.min(1,1200/Math.max(img.width,img.height));c.width=img.width*k;c.height=img.height*k;c.getContext("2d").drawImage(img,0,0,c.width,c.height);setPath(path,{nome:file.name,tipo:"img",url:c.toDataURL("image/jpeg",.82)});render()};img.src=rd.result};rd.readAsDataURL(file)}
 var MQ=window.matchMedia?window.matchMedia("(min-width: 900px)"):null;function WIDE(){return !!(MQ&&MQ.matches)}
 if(MQ){try{MQ.addEventListener("change",function(){render()})}catch(e){MQ.addListener(function(){render()})}}
@@ -1069,6 +1080,7 @@ var A={
   if(S.real&&S.role==="morador"&&v==="perfil")carregarPerfil();
   if(S.real&&S.role==="morador"&&(v==="inicio"||v==="encomendas"||v==="avisos")){carregarMinhasEnc();carregarAvisos()}
   if(S.real&&S.role==="portaria"&&(v==="enc"||v==="fila"))carregarPortaria();
+  if(S.real&&((S.role==="morador"&&["inicio","loc","locDet"].indexOf(v)>=0)||(S.role==="portaria"&&v==="pres")||(S.role==="sindico"&&(v==="painel"||v==="locacoes"))))carregarLocacoes();
   if(S.real&&((S.role==="morador"&&(v==="inicio"||v==="reservas"))||(S.role==="portaria"&&v==="pres")||(S.role==="sindico"&&["painel","reservas","areas","bloqueios"].indexOf(v)>=0)))carregarReservas();
   if(S.real&&S.role==="sindico"&&v==="encomendas")carregarEncAdm()},
  goMais:function(v){if(S.real&&S.role==="sindico"&&v==="encomendas")setTimeout(carregarEncAdm,0);if(S.real&&S.role==="sindico"&&(v==="usuarios"||v==="config"))setTimeout(function(){carregarAdmin().then(function(){if(S.screen==="config"){S.f={};render()}})},0);go(v)},
@@ -1077,7 +1089,7 @@ var A={
  trocaPorteiro:function(){S.porteiro=null;S.ui.okReg="";S.ui.okRet="";S.f={};if(S.screen==="pres")S.screen="enc"},
  locNovaBtn:function(){S.lf=novoLf();go("locNova")},
  locListaBtn:function(){go("loc")},
- abrirLoc:function(v){if(S.role==="morador"){go("locDet")}S.ui.locId=+v;window.scrollTo(0,0)},
+ abrirLoc:function(v){if(S.role==="morador"){go("locDet")}S.ui.locId=String(v);window.scrollTo(0,0)},
  locVoltar:function(){S.ui.locId=null},
  filLoc:function(v){S.ui.filLoc=v},
  lfAddP:function(){S.lf.pessoas.push({nome:"",rg:"",cpf:"",doc:null})},
@@ -1088,26 +1100,46 @@ var A={
  lfAceite:function(v,el){S.lf.aceite=el.checked},
  rmDoc:function(v){setPath(v,null)},
  verDoc:function(v){S.sheet={t:"doc",path:v}},
+ verDocLoc:function(v){var p=String(v).split("|"),l=loc(p[0]),d=null;if(!l)return;l.pessoas.concat(l.veiculos).forEach(function(x){if(x.doc&&x.doc.id===p[1])d=x.doc});
+  toast("Abrindo o documento…");chamarServidor("locacao.doc",{locacaoId:p[0],docId:p[1]},{silencioso:true}).then(function(r){var url=r.url;
+   if(r.tipo==="pdf"){var b=atob(url.split(",")[1]),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);url=URL.createObjectURL(new Blob([u],{type:"application/pdf"}))}
+   S.sheet={t:"docLoc",url:url,tipo:r.tipo,nome:(d&&d.nome)||"Documento"};render()},function(e){toast(e.mensagem)})},
  locEnviar:function(){var F=S.lf,u=me(),min=addDays(TODAY,S.cfg.locAntMin),e="";
   if(!F.de||!F.ate)e="Informe as datas de entrada e saída.";else if(F.de<min)e="A entrada precisa ser a partir de "+fmtD(min)+" ("+S.cfg.locAntMin+" dias de antecedência).";else if(F.ate<=F.de)e="A saída precisa ser depois da entrada.";
   if(!e)F.pessoas.some(function(p,i){var n="Pessoa "+(i+1)+": ";if(p.nome.trim().split(/\s+/).length<2)e=n+"informe o nome completo.";else if(!p.rg.trim())e=n+"informe o RG.";else if(!cpfOk(p.cpf))e=n+"CPF inválido. Confira os números.";else if(!p.doc)e=n+"anexe a foto do documento.";return !!e});
   if(!e&&!F.semCarro)F.veiculos.some(function(v,i){var n="Veículo "+(i+1)+": ";if(!/^[A-Za-z]{3}-?[0-9][A-Za-z0-9][0-9]{2}$/.test(v.placa.trim()))e=n+"placa inválida (ex.: ABC1D23).";else if(!v.doc)e=n+"anexe o documento do carro (CRLV).";return !!e});
   if(!e&&!F.aceite)e="Marque a declaração de responsabilidade para enviar.";
   if(e){S.ui.errForm=e;return}
-  S.ui.errForm="";var q=quandoAgora();
+  S.ui.errForm="";
+  if(S.real){if(S.ui.ocupado)return;S.ui.ocupado=true;toast("Enviando a solicitação e os documentos…");
+   chamarServidor("locacao.solicitar",{de:F.de,ate:F.ate,plataforma:F.plataforma,contato:F.contato,obs:F.obs,aceite:true,semCarro:F.semCarro,
+    pessoas:F.pessoas.map(function(p){return {nome:p.nome.trim(),rg:p.rg.trim(),cpf:p.cpf,doc:p.doc&&p.doc.url}}),
+    veiculos:F.semCarro?[]:F.veiculos.map(function(v){return {placa:v.placa.trim().toUpperCase(),modelo:v.modelo.trim(),doc:v.doc&&v.doc.url}})},{grava:true,tempoLimiteMs:120000}).then(function(d){
+    var l=locDoServidor(d);if(!loc(l.id))S.locacoes.push(l);S.lf=null;go("locDet");S.ui.locId=l.id;toast("Solicitação enviada. A administração vai analisar.")},
+    function(e){S.ui.errForm=e.mensagem;render()}).finally(function(){S.ui.ocupado=false});return}
+  var q=quandoAgora();
   var l={id:uid(),apto:u.apto,por:u.nome,criado:q,de:F.de,ate:F.ate,status:"pendente",plataforma:F.plataforma,contato:F.contato,obs:F.obs,semCarro:F.semCarro,pessoas:F.pessoas.map(function(p){return {nome:p.nome.trim(),rg:p.rg.trim(),cpf:fmtCpf(p.cpf),doc:p.doc}}),veiculos:F.semCarro?[]:F.veiculos.map(function(v){return {placa:v.placa.trim().toUpperCase(),modelo:v.modelo.trim(),doc:v.doc}}),hist:[{q:q,t:"Solicitação enviada por "+u.nome}]};
   S.locacoes.push(l);audit("Pediu autorização de locação","Apto "+u.apto+" · "+periodo(l)+" · "+l.pessoas.length+" hóspede(s)");S.lf=null;go("locDet");S.ui.locId=l.id;toast("Solicitação enviada. A administração vai analisar.")},
- locCorrigir:function(v){var l=loc(+v);S.lf={de:"",ate:"",pessoas:JSON.parse(JSON.stringify(l.pessoas)),veiculos:l.veiculos.length?JSON.parse(JSON.stringify(l.veiculos)):[{placa:"",modelo:"",doc:null}],semCarro:l.semCarro,plataforma:l.plataforma,contato:l.contato,obs:l.obs,aceite:false};S.lf.de=l.de>=addDays(TODAY,S.cfg.locAntMin)?l.de:"";S.lf.ate=S.lf.de?l.ate:"";go("locNova");toast("Dados copiados. Corrija o que foi pedido e envie de novo.")},
- locMotivoM:function(v){S.f={motivo:""};S.sheet={t:"locMotivo",id:+v,acao:"cancelar",quem:"morador"}},
- locRecusar:function(v){S.f={motivo:""};S.sheet={t:"locMotivo",id:+v,acao:"recusar",quem:"adm"}},
- locCancelarA:function(v){S.f={motivo:""};S.sheet={t:"locMotivo",id:+v,acao:"cancelar",quem:"adm"}},
+ locCorrigir:function(v){var l=loc(v);if(S.real){S.lf={de:"",ate:"",pessoas:l.pessoas.map(function(p){return {nome:p.nome,rg:"",cpf:"",doc:null}}),veiculos:l.veiculos.length?l.veiculos.map(function(x){return {placa:x.placa,modelo:x.modelo,doc:null}}):[{placa:"",modelo:"",doc:null}],semCarro:l.semCarro,plataforma:l.plataforma,contato:l.contato,obs:l.obs,aceite:false};S.lf.de=l.de>=addDays(TODAY,S.cfg.locAntMin)?l.de:"";S.lf.ate=S.lf.de?l.ate:"";go("locNova");toast("Nomes e placas copiados. Por segurança, informe de novo RG, CPF e anexe os documentos.");return}S.lf={de:"",ate:"",pessoas:JSON.parse(JSON.stringify(l.pessoas)),veiculos:l.veiculos.length?JSON.parse(JSON.stringify(l.veiculos)):[{placa:"",modelo:"",doc:null}],semCarro:l.semCarro,plataforma:l.plataforma,contato:l.contato,obs:l.obs,aceite:false};S.lf.de=l.de>=addDays(TODAY,S.cfg.locAntMin)?l.de:"";S.lf.ate=S.lf.de?l.ate:"";go("locNova");toast("Dados copiados. Corrija o que foi pedido e envie de novo.")},
+ locMotivoM:function(v){S.f={motivo:""};S.ui.errForm="";S.sheet={t:"locMotivo",id:String(v),acao:"cancelar",quem:"morador"}},
+ locRecusar:function(v){S.f={motivo:""};S.ui.errForm="";S.sheet={t:"locMotivo",id:String(v),acao:"recusar",quem:"adm"}},
+ locCancelarA:function(v){S.f={motivo:""};S.ui.errForm="";S.sheet={t:"locMotivo",id:String(v),acao:"cancelar",quem:"adm"}},
  motivoRapido:function(v){S.f.motivo=v},
- locAprovar:function(v){var l=loc(+v),u=me(),q=quandoAgora(),cargo=u.perfil==="sindico"?"síndico":"administração";l.status="aprovada";l.decisao={por:u.nome,q:q};l.hist.push({q:q,t:"Aprovada por "+u.nome+" ("+cargo+")"});
+ locAprovar:function(v){var l=loc(v),u=me(),q=quandoAgora(),cargo=u.perfil==="sindico"?"síndico":"administração";
+  if(S.real){if(S.ui.ocupado)return;S.ui.ocupado=true;chamarServidor("locacao.decidir",{id:l.id,aprovar:true},{grava:true}).then(function(d){Object.assign(l,locDoServidor(d));S.ui.okLocAdm="Locação do apto "+l.apto+" aprovada. O morador foi avisado e a portaria já vê os hóspedes.";S.ui.locId=null;render()},function(e){toast(e.mensagem);carregarLocacoes()}).finally(function(){S.ui.ocupado=false});return}l.status="aprovada";l.decisao={por:u.nome,q:q};l.hist.push({q:q,t:"Aprovada por "+u.nome+" ("+cargo+")"});
   notify(l.apto,"Locação de "+periodo(l)+" aprovada pela administração.","loc");audit("Aprovou locação","Apto "+l.apto+" · "+periodo(l));S.ui.okLocAdm="Locação do apto "+l.apto+" aprovada. O morador foi avisado e a portaria já vê os hóspedes.";S.ui.locId=null},
  locConfMotivo:function(){var s=S.sheet,l=loc(s.id),u=me(),q=quandoAgora(),m=(S.f.motivo||"").trim();
   if(s.acao==="recusar"&&!m){S.ui.errForm="Escreva o motivo da recusa. O morador vai ver este texto.";return}
   if(s.acao==="cancelar"&&s.quem==="adm"&&!m){S.ui.errForm="Escreva o motivo do cancelamento. O morador vai ver este texto.";return}
-  S.ui.errForm="";l.motivo=m;
+  S.ui.errForm="";
+  if(S.real){if(S.ui.ocupado)return;S.ui.ocupado=true;var adm=s.quem==="adm";
+   (s.acao==="recusar"?chamarServidor("locacao.decidir",{id:l.id,aprovar:false,motivo:m},{grava:true}):chamarServidor("locacao.cancelar",{id:l.id,motivo:m},{grava:true})).then(function(d){
+    Object.assign(l,locDoServidor(d));S.sheet=null;
+    if(s.acao==="recusar"){S.ui.okLocAdm="Solicitação do apto "+l.apto+" recusada. O morador recebeu o motivo.";S.ui.locId=null}
+    else if(adm){S.ui.okLocAdm="Autorização do apto "+l.apto+" cancelada. O morador foi avisado.";S.ui.locId=null}
+    else toast("Cancelada. A administração e a portaria já veem o cancelamento.");render()},
+    function(e){S.ui.errForm=e.mensagem;render()}).finally(function(){S.ui.ocupado=false});return}
+  l.motivo=m;
   if(s.acao==="recusar"){l.status="recusada";l.decisao={por:u.nome,q:q};l.hist.push({q:q,t:"Recusada por "+u.nome+": "+m});notify(l.apto,"Sua solicitação de locação de "+periodo(l)+" foi recusada. Motivo: "+m,"loc");audit("Recusou locação","Apto "+l.apto+" · "+m);S.ui.okLocAdm="Solicitação do apto "+l.apto+" recusada. O morador recebeu o motivo.";S.ui.locId=null}
   else{l.status="cancelada";l.cancelPor=u.nome;l.hist.push({q:q,t:"Cancelada por "+u.nome+(m?": "+m:"")});
    if(s.quem==="adm"){notify(l.apto,"A autorização de locação de "+periodo(l)+" foi cancelada pela administração. Motivo: "+m,"loc");S.ui.okLocAdm="Autorização do apto "+l.apto+" cancelada. O morador foi avisado.";S.ui.locId=null}
@@ -1176,7 +1208,7 @@ var A={
  encTab:function(v){S.ui.encTab=v},
  resTab:function(v){S.ui.resTab=v},
  abrirRes:function(v){go("reserva");S.ui.resId=String(v)},
- abrirAviso:function(v){var n=S.notifs.filter(function(x){return String(x.id)===String(v)})[0];if(S.real&&!n.lida)chamarServidor("avisos.marcarLido",{id:n.id},{grava:true,silencioso:true}).catch(function(){});n.lida=true;if(n.ir==="perfil"){go("perfil");return}if(n.ir==="encomendas"){go("encomendas");S.ui.encTab="pend"}else A.minhasRes()},
+ abrirAviso:function(v){var n=S.notifs.filter(function(x){return String(x.id)===String(v)})[0];if(S.real&&!n.lida)chamarServidor("avisos.marcarLido",{id:n.id},{grava:true,silencioso:true}).catch(function(){});n.lida=true;if(n.ir==="perfil"){go("perfil");return}if(n.ir==="loc"){go("loc");return}if(n.ir==="encomendas"){go("encomendas");S.ui.encTab="pend"}else A.minhasRes()},
  lerTudo:function(){var u=me();S.notifs.forEach(function(n){if(n.apto===u.apto&&!n.lida){if(S.real)chamarServidor("avisos.marcarLido",{id:n.id},{grava:true,silencioso:true}).catch(function(){});n.lida=true}})},
  verFoto:function(v){var ef=encPorId(v);if(S.real&&ef&&ef.temFoto&&!ef.foto){chamarServidor("encomendas.foto",{id:v}).then(function(d){ef.foto=d.foto;S.sheet={t:"foto",id:v};render()},function(e){toast(e.mensagem);render()});return}S.sheet={t:"foto",id:v}},
  nrArea:function(v){S.nr.area=v;S.nr.data=null;S.nr.turno=null},
@@ -1379,6 +1411,7 @@ function entrarReal(eu){
  if(role==="morador"){S.meusPedidos=[];S.perfilSrv=null;S.encomendas=[];S.notifs=[];carregarMeusPedidos();carregarPerfil();carregarMinhasEnc();carregarAvisos()}
  if(role==="portaria"){S.encomendas=[];carregarPortaria()}
  S.reservas=[];S.bloqueios=[];carregarReservas();
+ S.locacoes=[];carregarLocacoes();
  render()}
 function sairLocal(){apagarToken();S.real=null;S.usuarios=S.usuarios.filter(function(u){return u.id!=="real"});S.role=null;S.screen=null;S.sheet=null;S.login={step:"email",email:"",codigo:"",err:""}}
 window.aoPerderSessao=function(msg){if(!S.real)return;sairLocal();toast(msg||"Entre novamente para continuar.");render()};
@@ -1420,6 +1453,9 @@ function registrarReal(){var f=S.f,un=f.un,n=f.itens.length;if(S.ui.ocupado)retu
 function carregarMinhasEnc(){return chamarServidor("encomendas.minhas",{},{silencioso:true}).then(function(l){S.encomendas=l.map(encDoServidor);render()},function(){})}
 function carregarAvisos(){return chamarServidor("avisos.listar",{},{silencioso:true}).then(function(l){var ap=(me()||{}).apto;S.notifs=l.map(function(a){return {id:a.id,apto:ap,txt:a.texto,q:a.criadoEm,lida:!!a.lido,ir:a.destino||""}});render()},function(){})}
 function carregarEncAdm(){return chamarServidor("encomendas.listar",{},{silencioso:true}).then(function(l){S.encomendas=l.map(encDoServidor);render()},function(e){toast(e.mensagem);render()})}
+function locDoServidor(l){return {id:String(l.id),apto:l.apto,por:l.por||"",criado:l.criado||"",ordem:l.ordem||"",de:l.de,ate:l.ate,status:l.status,plataforma:l.plataforma||"",contato:l.contato||"",obs:l.obs||"",semCarro:!!l.semCarro,motivo:l.motivo||"",decisao:l.decisao||null,cancelPor:l.cancelPor||"",docsApagados:l.docsApagados||"",
+ pessoas:(l.pessoas||[]).map(function(p){return {nome:p.nome,rg:p.rg||"",cpf:p.cpf||"",doc:p.doc||null}}),veiculos:(l.veiculos||[]).map(function(v){return {placa:v.placa,modelo:v.modelo||"",doc:v.doc||null}}),hist:l.hist||[]}}
+function carregarLocacoes(){return chamarServidor("locacao.carregar",{},{silencioso:true}).then(function(d){S.locacoes=d.locacoes.map(locDoServidor);if(S.ui.locId&&!loc(S.ui.locId))S.ui.locId=null;render()},function(e){if(S.role==="sindico")toast(e.mensagem);render()})}
 function resDoServidor(r){return {id:String(r.id),por:r.por||r.nome||"",area:String(r.area),data:r.data,turno:String(r.turno),apto:r.apto||"",nome:r.nome||"",status:r.status,isenta:!!r.isenta,taxa:r.taxa,origem:r.origem||"",criado:r.criado||"",motivo:r.motivo||"",convidados:r.convidados||[],ocupado:!!r.ocupado}}
 function carregarReservas(){return chamarServidor("reservas.carregar",{},{silencioso:true}).then(function(d){
  S.areas=d.areas.map(function(a){a.turnos=(a.turnos||[]).map(function(t){t.id=String(t.id);return t});return a});S.bloqueios=d.bloqueios;S.reservas=d.reservas.map(resDoServidor);

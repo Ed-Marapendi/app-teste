@@ -10,6 +10,7 @@
  *
  *  opcoes.grava = true   → gera idEnvio e reenvia uma vez se a conexão falhar.
  *  opcoes.silencioso     → não mostra a barra de carregamento.
+ *  opcoes.tempoLimiteMs  → espera maior para envios com arquivos (padrão: config.js).
  */
 (function () {
   'use strict';
@@ -40,9 +41,9 @@
 
   function novoIdEnvio() { return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10); }
 
-  function enviar(corpo) {
+  function enviar(corpo, ms) {
     var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    var limite = setTimeout(function () { if (ctrl) ctrl.abort(); }, C.tempoLimiteMs || 30000);
+    var limite = setTimeout(function () { if (ctrl) ctrl.abort(); }, ms || C.tempoLimiteMs || 30000);
     return fetch(C.servidor, { method: 'POST', body: JSON.stringify(corpo), redirect: 'follow', signal: ctrl ? ctrl.signal : undefined })
       .then(function (r) {
         if (!r.ok) throw { codigo: 'HTTP_' + r.status, mensagem: 'O servidor não respondeu (erro ' + r.status + '). Tente de novo.' };
@@ -61,9 +62,9 @@
     var corpo = { acao: acao, token: lerToken(), dados: dados || {}, versao: C.versao };
     if (opcoes.grava) corpo.idEnvio = opcoes.idEnvio || novoIdEnvio();
     if (!opcoes.silencioso) carregando(+1);
-    var tentativa = enviar(corpo).catch(function (e) {
+    var tentativa = enviar(corpo, opcoes.tempoLimiteMs).catch(function (e) {
       if (!e.rede) throw e;                       // só reenvia quando a conexão falhou
-      return new Promise(function (ok) { setTimeout(ok, 1500); }).then(function () { return enviar(corpo); });
+      return new Promise(function (ok) { setTimeout(ok, 1500); }).then(function () { return enviar(corpo, opcoes.tempoLimiteMs); });
     });
     return tentativa.then(function (res) {
       if (res && res.ok) return res.dados;
