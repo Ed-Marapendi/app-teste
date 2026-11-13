@@ -223,6 +223,13 @@ function avisoPill(e){var m={email:["E-mail enviado","p-ok"],cota:["Só no app �
 function resPorId(id){return S.reservas.filter(function(x){return String(x.id)===String(id)})[0]}
 function inicioRes(r){var a=area(r.area),h=r.turno==="integral"?a.abre:((a.turnos.filter(function(t){return String(t.id)===String(r.turno)})[0]||{}).ini||"00:00");var p=r.data.split("-"),q=String(h||"00:00").split(":");return new Date(+p[0],+p[1]-1,+p[2],+q[0]||0,+q[1]||0)}
 function podeCancelar(r){var a=area(r.area);var lim=new Date(inicioRes(r).getTime()-a.canc*3600000);return (S.real?new Date():new Date(2026,9,21,9,0))<lim}
+var REGRAS_PADRAO="Ao reservar, você se compromete a respeitar as regras do condomínio.";
+function termoUrl(a){var c=(S.termos||{})[a.id];return c&&c.v===a.termoVersao&&c.url?c.url:""}
+function carregarTermo(a,abrir){S.termos=S.termos||{};var c=S.termos[a.id];if(c&&c.v===a.termoVersao&&(c.carregando||c.url)){if(abrir&&c.url)S.sheet={t:"termoPdf",id:a.id};return}
+ S.termos[a.id]={v:a.termoVersao,carregando:true};
+ chamarServidor("areas.termo",{id:a.id},{silencioso:true}).then(function(d){var b=atob(d.pdf.split(",")[1]),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
+  S.termos[a.id]={v:a.termoVersao,url:URL.createObjectURL(new Blob([u],{type:"application/pdf"}))};if(abrir)S.sheet={t:"termoPdf",id:a.id};render()},
+  function(e){delete S.termos[a.id];if(abrir)toast(e.mensagem);render()})}
 function areaPadrao(){var l=S.areas.filter(function(x){return x.ativo});return l.length?l[0].id:(S.areas[0]||{}).id}
 function mesAtual(){return {y:+TODAY.slice(0,4),m:+TODAY.slice(5,7)-1}}
 
@@ -489,7 +496,8 @@ function mReservas(){
  '<div class="row between small"><span class="muted">Período</span><b>'+(turno?esc(turnoLabel(a,turno)):"Escolha o turno")+'</b></div>'+
  '<div class="row between small" style="border-top:1px dashed var(--line);padding-top:10px"><span class="muted">Taxa (no boleto do condomínio)</span><b>'+brl(a.preco)+'</b></div>'+
  (a.manual?'<div class="pill p-warn" style="white-space:normal;padding:8px 12px">Este espaço precisa de aprovação do síndico ou da administração.</div>':'<div class="pill p-ok" style="white-space:normal;padding:8px 12px">'+ic("check",16)+'&nbsp;Confirmação imediata: este espaço não exige aprovação.</div>')+'</section>';
- h+='<label class="row" style="align-items:flex-start"><input type="checkbox" id="nr-aceite" data-a="nrAceite" '+(N.aceite?"checked":"")+' style="width:24px;height:24px;margin:0;flex-shrink:0;accent-color:var(--sea)"><span class="small">Li e aceito os <a href="#" data-a="verTermos" data-v="'+a.id+'">termos de uso do espaço</a>. Cancelamento sem custo até '+a.canc+' h antes.</span></label>';
+ h+='<label class="row" style="align-items:flex-start"><input type="checkbox" id="nr-aceite" data-a="nrAceite" '+(N.aceite?"checked":"")+' style="width:24px;height:24px;margin:0;flex-shrink:0;accent-color:var(--sea)"><span class="small">'+(a.temTermo?(termoUrl(a)?'Li e aceito o <a href="'+termoUrl(a)+'" target="_blank" rel="noopener">termo de uso (PDF)</a>':'Li e aceito o <a href="#" data-a="abrirTermo" data-v="'+a.id+'">termo de uso (PDF)</a>'):'Li e aceito as <a href="#" data-a="verTermos" data-v="'+a.id+'">regras de uso do espaço</a>')+'. Cancelamento sem custo até '+a.canc+' h antes.</span></label>';
+ if(S.real&&a.temTermo&&!termoUrl(a))carregarTermo(a,false);
  h+='<button class="btn block" data-a="nrConfirmar" '+(pronto?"":"disabled")+'>'+(a.manual?"Enviar pedido de reserva":"Confirmar reserva")+'</button>';
  if(!pronto)h+='<p class="hint" style="text-align:center">'+(!N.data?"Escolha uma data livre.":!turno?"Escolha o turno.":"Aceite os termos para continuar.")+'</p>';
  return h+'</main>';
@@ -871,7 +879,10 @@ function formArea(){
  h+='<button class="switchrow" data-a="fManual" aria-pressed="'+f.manual+'"><span><b style="display:block">Aprovação manual</b><span class="small muted">'+(f.manual?"Síndico ou administração aprova cada pedido":"Desligada: confirma na hora, se a data estiver livre")+'</span></span><span class="toggle manual'+(f.manual?" on":"")+'"><i></i></span></button>'+
  '<div class="g2"><div class="fld"><label class="lbl" for="a-amin">Antecedência mínima (dias)</label><input id="a-amin" class="in" inputmode="numeric" data-bind="f.antMin" value="'+esc(f.antMin)+'"></div><div class="fld"><label class="lbl" for="a-amax">Antecedência máxima (dias)</label><input id="a-amax" class="in" inputmode="numeric" data-bind="f.antMax" value="'+esc(f.antMax==null?90:f.antMax)+'"></div></div>'+
  '<div class="g2"><div class="fld"><label class="lbl" for="a-canc">Cancelar sem custo até (h antes)</label><input id="a-canc" class="in" inputmode="numeric" data-bind="f.canc" value="'+esc(f.canc)+'"></div><div class="fld"><label class="lbl" for="a-lim">Reservas por apto no mês (0 = sem limite)</label><input id="a-lim" class="in" inputmode="numeric" data-bind="f.limite" value="'+esc(f.limite==null?0:f.limite)+'"></div></div>'+
- '<div class="fld"><label class="lbl" for="a-termos">Termos de uso</label><textarea id="a-termos" class="in" data-bind="f.termos">'+esc(f.termos)+'</textarea></div>'+
+ '<div class="fld"><span class="lbl">Este espaço exige termo de uso?</span><div class="g2"><button class="optcard'+(f.exigeTermo?" on":"")+'" data-a="fExigeTermo" data-v="1"><b>Sim</b><span class="xs">O morador lê e aceita o termo em PDF</span></button><button class="optcard'+(!f.exigeTermo?" on":"")+'" data-a="fExigeTermo" data-v="0"><b>Não</b><span class="xs">Vale o texto de regras abaixo</span></button></div></div>'+
+ (f.exigeTermo?'<div class="card tight stack" style="background:var(--bg)"><div class="small">'+(f.termoNome?'<b>Novo arquivo:</b> '+esc(f.termoNome)+' <span class="muted">(é guardado ao tocar em Salvar)</span>':f.temTermo?'<b>Termo anexado</b> em '+esc(f.termoVersao)+' · <a href="#" data-a="abrirTermo" data-v="'+esc(f.id)+'">ver termo</a>':'<b>Nenhum termo anexado.</b> Anexe o PDF para salvar.')+'</div>'+
+  '<label class="lbl" for="a-pdf">'+(f.temTermo||f.termoNome?"Trocar o arquivo":"Anexar o termo (PDF, até 5 MB)")+'</label><input id="a-pdf" class="in" type="file" accept="application/pdf,.pdf" data-pdf="1"></div>':'')+
+ '<div class="fld"><label class="lbl" for="a-termos">Texto de regras (aparece para o morador)</label><textarea id="a-termos" class="in" data-bind="f.termos">'+esc(f.termos)+'</textarea></div>'+
  '<button class="switchrow" data-a="fAtivoArea" aria-pressed="'+f.ativo+'"><span><b style="display:block">Espaço ativo</b><span class="small muted">Aparece para os moradores</span></span><span class="toggle'+(f.ativo?" on":"")+'"><i></i></span></button>'+
  (S.ui.errForm?'<div class="errmsg" role="alert">'+esc(S.ui.errForm)+'</div>':'')+'<button class="btn block" data-a="sSalvaArea">Salvar</button></section>';
  return h;
@@ -881,7 +892,7 @@ function sAreas(){
  if(S.ui.form==="novaArea"||(S.ui.form&&S.ui.form.indexOf&&S.ui.form.indexOf("area:")===0))h+=formArea();else h+='<button class="btn block" data-a="sNovaArea">+ Nova área comum</button>';
  if(S.ui.okArea)h+='<div class="okmsg" role="status">'+esc(S.ui.okArea)+'</div>';
  S.areas.forEach(function(a){
-  h+='<section class="card"><div class="row between"><div><b style="font-size:17px">'+esc(a.nome)+'</b><div class="small muted">Até '+a.cap+' pessoas · '+brl(a.preco)+(a.ativo?"":" · inativo")+'</div><div class="xs muted">'+(a.modo==="integral"?esc(turnoLabel(a,"integral")):"Por turnos: "+a.turnos.map(function(t){return esc(t.nome)}).join(", "))+'</div></div><button class="btn out sm" data-a="sEditArea" data-v="'+a.id+'">Editar</button></div>'+
+  h+='<section class="card"><div class="row between"><div><b style="font-size:17px">'+esc(a.nome)+'</b><div class="small muted">Até '+a.cap+' pessoas · '+brl(a.preco)+(a.ativo?"":" · inativo")+'</div><div class="xs muted">'+(a.modo==="integral"?esc(turnoLabel(a,"integral")):"Por turnos: "+a.turnos.map(function(t){return esc(t.nome)}).join(", "))+'</div>'+(S.real?'<div class="xs muted">'+(a.temTermo?'Termo de uso: PDF de '+esc(a.termoVersao)+' · <a href="#" data-a="abrirTermo" data-v="'+a.id+'">ver</a>':a.exigeTermo?'<b style="color:var(--bad)">Termo exigido, mas sem PDF</b>':'Sem termo em PDF: vale o texto de regras')+'</div>':'')+'</div><button class="btn out sm" data-a="sEditArea" data-v="'+a.id+'">Editar</button></div>'+
   '<button class="switchrow" data-a="sToggleManual" data-v="'+a.id+'" aria-pressed="'+a.manual+'" style="border:0"><span><b style="display:block">Aprovação '+(a.manual?"manual":"automática")+'</b><span class="small muted">'+(a.manual?"Síndico ou administração aprova":"Confirma na hora, se livre")+'</span></span><span class="toggle manual'+(a.manual?" on":"")+'"><i></i></span></button></section>';
  });
  return h+'</main>';
@@ -953,8 +964,10 @@ function vSheet(){
   (S.ui.errForm?'<div class="errmsg" role="alert">'+esc(S.ui.errForm)+'</div>':'')+'<button class="btn okb block" data-a="pConfRet">Confirmar retirada</button><button class="btn ghost block" data-a="fechaSheet">Cancelar</button></div>';}
  else if(s.t==="cancelRes"){var r=resPorId(s.id),a=area(r.area);
   h=head("Cancelar reserva?")+'<div class="wrap stack g12"><p>'+esc(a.nome)+' em <b>'+fmtLong(r.data)+'</b>. Dentro do prazo, não há cobrança da taxa.</p><button class="btn badb block" data-a="confCancel" data-v="'+r.id+'">Sim, cancelar</button><button class="btn ghost block" data-a="fechaSheet">Manter reserva</button></div>';}
+ else if(s.t==="termoPdf"){var a3=area(s.id),u3=termoUrl(a3);
+  h=head("Termo de uso · "+a3.nome)+'<div class="wrap stack g12"><p class="small muted">Versão de '+esc(a3.termoVersao)+'.</p><a class="btn block" href="'+u3+'" target="_blank" rel="noopener">Abrir o termo (PDF)</a><p class="small muted">Se o celular baixar o arquivo, abra pelo aviso de download.</p></div>';}
  else if(s.t==="termos"){var a2=area(s.id);
-  h=head("Termos de uso · "+a2.nome)+'<div class="wrap stack g12"><p>'+esc(a2.termos)+'</p><p class="small muted">Capacidade: '+a2.cap+' pessoas. Cancelamento sem custo até '+a2.canc+' h antes. A taxa de '+brl(a2.preco)+' é lançada no boleto do condomínio.</p></div>';}
+  h=head("Regras de uso · "+a2.nome)+'<div class="wrap stack g12"><p>'+esc(a2.termos||REGRAS_PADRAO)+'</p>'+(a2.temTermo?'<button class="btn out block" data-a="abrirTermo" data-v="'+a2.id+'">Ler o termo de uso (PDF)</button>':'')+'<p class="small muted">Capacidade: '+a2.cap+' pessoas. Cancelamento sem custo até '+a2.canc+' h antes. A taxa de '+brl(a2.preco)+' é lançada no boleto do condomínio.</p></div>';}
  else if(s.t==="instalar"){
   h=head("Instalar na tela inicial")+'<div class="wrap stack g12"><div class="card tight"><b>Android (Chrome)</b><p class="small">Abra o link do app, toque no menu ⋮ e escolha <b>Adicionar à tela inicial</b>.</p></div><div class="card tight"><b>iPhone (Safari)</b><p class="small">Abra o link do app, toque em <b>Compartilhar</b> e escolha <b>Adicionar à Tela de Início</b>.</p></div><p class="xs muted">O ícone abre o app direto, como um aplicativo comum.</p></div>';}
  else if(s.t==="lgpd"){
@@ -1032,6 +1045,7 @@ function render(){
  var key=S.role+"/"+S.screen+"/"+(S.ui.resId||"")+"/"+(S.ui.locId||"")+"/"+S.login.step+"/"+(S.ui.pedId||"")+"/"+(S.cad&&S.cad.res?1:0);if(key!==lastKey){window.scrollTo(0,0);lastKey=key}
  document.querySelectorAll("input[data-foto]").forEach(function(x){x.addEventListener("change",onFoto)});
  document.querySelectorAll("input[data-file]").forEach(function(x){x.addEventListener("change",onDoc)});
+ document.querySelectorAll("input[data-pdf]").forEach(function(x){x.addEventListener("change",onPdf)});
  document.body.className=S.role?"logged r-"+S.role:"";
 }
 function onDoc(ev){var t=ev.target,file=t.files&&t.files[0],path=t.dataset.file;if(!file)return;
@@ -1041,6 +1055,10 @@ var MQ=window.matchMedia?window.matchMedia("(min-width: 900px)"):null;function W
 if(MQ){try{MQ.addEventListener("change",function(){render()})}catch(e){MQ.addListener(function(){render()})}}
 var toastT;function toast(m){S.toast=m;clearTimeout(toastT);setTimeout(render,0);toastT=setTimeout(function(){S.toast="";render()},3800)}
 function setPath(path,val){var p=path.split("."),o=S;for(var i=0;i<p.length-1;i++)o=o[p[i]];o[p[p.length-1]]=val}
+function onPdf(ev){var file=ev.target.files&&ev.target.files[0];if(!file)return;
+ if(!(file.type==="application/pdf"||/\.pdf$/i.test(file.name))){S.ui.errForm="Escolha um arquivo PDF. Se o termo está em Word, salve como PDF antes.";render();return}
+ if(file.size>5*1024*1024){S.ui.errForm="O PDF tem mais de 5 MB. Salve uma versão menor (por exemplo, \"Reduzir tamanho\" ao salvar como PDF).";render();return}
+ var rd=new FileReader();rd.onload=function(){S.f.termoPdf="data:application/pdf;base64,"+String(rd.result).split(",")[1];S.f.termoNome=file.name;S.ui.errForm="";render()};rd.readAsDataURL(file)}
 function onFoto(ev){var file=ev.target.files&&ev.target.files[0],k=+ev.target.dataset.foto;if(!file)return;var rd=new FileReader();rd.onload=function(){var img=new Image();img.onload=function(){var c=document.createElement("canvas"),k=Math.min(1,900/Math.max(img.width,img.height));c.width=img.width*k;c.height=img.height*k;c.getContext("2d").drawImage(img,0,0,c.width,c.height);S.f.itens[k].foto=c.toDataURL("image/jpeg",.8);render()};img.src=rd.result};rd.readAsDataURL(file)}
 
 function go(sc){S.screen=sc;S.sheet=null;S.f={};S.ui.form=null;S.ui.errForm="";S.ui.locId=null;["okReg","okRet","okRes","okUser","okArea","okBloq","okCfg","okLoc","okLocAdm","okEnc","okSol"].forEach(function(k){S.ui[k]=""});}
@@ -1149,6 +1167,7 @@ var A={
  sheet:function(v){S.sheet={t:v}},
  toastMsg:function(v){S.sheet=null;toast(v)},
  verTermos:function(v){S.sheet={t:"termos",id:v}},
+ abrirTermo:function(v){var a=area(v);if(!a||!a.temTermo)return;var u=termoUrl(a);if(u){S.sheet={t:"termoPdf",id:a.id};return}toast("Abrindo o termo…");carregarTermo(a,true)},
  /* morador */
  goInicio:function(){go("inicio")},
  novaRes:function(){go("reservas");S.ui.resTab="nova"},
@@ -1286,19 +1305,21 @@ var A={
  fPin:function(){S.f.exigirPin=!S.f.exigirPin},
  fTogCfg:function(v){S.f[v]=!S.f[v]},
  sToggleManual:function(v){var a=area(v);if(S.real){chamarServidor("areas.aprovacao",{id:a.id,manual:!a.manual},{grava:true}).then(function(d){Object.assign(a,d);toast(a.nome+": aprovação "+(a.manual?"manual ligada. Novos pedidos aguardam aprovação.":"automática. Pedidos confirmam na hora."))},function(e){toast(e.mensagem);render()});return}a.manual=!a.manual;audit("Alterou área comum",a.nome+" · aprovação "+(a.manual?"manual":"automática"));toast(a.nome+": aprovação "+(a.manual?"manual ligada. Novos pedidos aguardam aprovação.":"automática. Pedidos confirmam na hora."))},
- sNovaArea:function(){S.ui.form="novaArea";S.ui.okArea="";S.f={nome:"",cap:"30",preco:"100",modo:"integral",abre:"10:00",fecha:"23:00",turnos:[{nome:"Manhã",ini:"09:00",fim:"13:00"},{nome:"Tarde",ini:"14:00",fim:"18:00"}],manual:false,antMin:2,antMax:90,canc:48,limite:0,termos:"",ativo:true}},
+ sNovaArea:function(){S.ui.form="novaArea";S.ui.okArea="";S.f={nome:"",cap:"30",preco:"100",modo:"integral",abre:"10:00",fecha:"23:00",turnos:[{nome:"Manhã",ini:"09:00",fim:"13:00"},{nome:"Tarde",ini:"14:00",fim:"18:00"}],manual:false,antMin:2,antMax:90,canc:48,limite:0,termos:REGRAS_PADRAO,exigeTermo:false,ativo:true}},
  sEditArea:function(v){var a=area(v);S.ui.form="area:"+v;S.ui.okArea="";S.f=JSON.parse(JSON.stringify(a));S.f.cap=String(a.cap);S.f.preco=String(a.preco);if(S.f.antMax==null)S.f.antMax=90;if(S.f.limite==null)S.f.limite=0;if(!S.f.turnos.length)S.f.turnos=S.real?[{nome:"Manhã",ini:"09:00",fim:"13:00"},{nome:"Tarde",ini:"14:00",fim:"18:00"}]:[{id:"t1",nome:"Almoço",ini:"11:00",fim:"16:00"},{id:"t2",nome:"Noite",ini:"18:00",fim:"23:00"}];window.scrollTo(0,0)},
  fModo:function(v){S.f.modo=v},
+ fExigeTermo:function(v){S.f.exigeTermo=v==="1";S.ui.errForm=""},
  fAddTurno:function(){S.f.turnos.push({nome:"Novo turno",ini:"",fim:""})},
  fRemTurno:function(v){S.f.turnos.splice(+v,1)},
  fManual:function(){S.f.manual=!S.f.manual},
  fAtivoArea:function(){S.f.ativo=!S.f.ativo},
  sSalvaArea:function(){if(!S.f.nome.trim()){S.ui.errForm="Informe o nome do espaço.";return}S.ui.errForm="";
+  if(S.real&&S.f.exigeTermo&&!S.f.temTermo&&!S.f.termoPdf){S.ui.errForm="Anexe o termo de uso em PDF ou marque que o espaço não exige termo.";return}
   if(S.real){var f0=S.f,ed=S.ui.form!=="novaArea",orig=ed?area(S.ui.form.slice(5)):null,ids=orig?orig.turnos.map(function(t){return String(t.id)}):[];
-   var dados={id:ed?orig.id:"",nome:f0.nome.trim(),cap:f0.cap,preco:f0.preco,modo:f0.modo,abre:f0.abre,fecha:f0.fecha,manual:!!f0.manual,antMin:f0.antMin,antMax:f0.antMax,canc:f0.canc,limite:f0.limite,termos:f0.termos,ativo:!!f0.ativo,
+   var dados={id:ed?orig.id:"",nome:f0.nome.trim(),cap:f0.cap,preco:f0.preco,modo:f0.modo,abre:f0.abre,fecha:f0.fecha,manual:!!f0.manual,antMin:f0.antMin,antMax:f0.antMax,canc:f0.canc,limite:f0.limite,termos:f0.termos,ativo:!!f0.ativo,exigeTermo:!!f0.exigeTermo,termoPdf:f0.exigeTermo&&f0.termoPdf?f0.termoPdf:"",
     turnos:f0.modo==="turnos"?f0.turnos.map(function(t){return {id:ids.indexOf(String(t.id))>=0?t.id:"",nome:t.nome,ini:t.ini,fim:t.fim}}):[]};
    if(S.ui.ocupado)return;S.ui.ocupado=true;
-   chamarServidor("areas.salvar",dados,{grava:true}).then(function(d){var x=area(d.id);if(x)Object.assign(x,d);else S.areas.push(d);S.ui.okArea=d.nome+" salvo.";S.ui.form=null;S.f={};render()},function(e){S.ui.errForm=e.mensagem;render()}).finally(function(){S.ui.ocupado=false});return}var f=S.f,o={nome:f.nome.trim(),cap:parseInt(f.cap,10)||0,preco:parseFloat(String(f.preco).replace(",","."))||0,modo:f.modo,abre:f.abre,fecha:f.fecha,turnos:f.turnos.map(function(t,i){return {id:t.id||"t"+(i+1)+uid(),nome:t.nome,ini:t.ini,fim:t.fim}}),manual:f.manual,antMin:parseInt(f.antMin,10)||0,canc:parseInt(f.canc,10)||0,termos:f.termos,ativo:f.ativo};
+   chamarServidor("areas.salvar",dados,{grava:true}).then(function(d){var x=area(d.id);if(x)Object.assign(x,d);else S.areas.push(d);S.ui.okArea=d.nome+" salvo."+(dados.termoPdf?" Termo de uso anexado (versão de "+d.termoVersao+").":"");S.ui.form=null;S.f={};render()},function(e){S.ui.errForm=e.mensagem;render()}).finally(function(){S.ui.ocupado=false});return}var f=S.f,o={nome:f.nome.trim(),cap:parseInt(f.cap,10)||0,preco:parseFloat(String(f.preco).replace(",","."))||0,modo:f.modo,abre:f.abre,fecha:f.fecha,turnos:f.turnos.map(function(t,i){return {id:t.id||"t"+(i+1)+uid(),nome:t.nome,ini:t.ini,fim:t.fim}}),manual:f.manual,antMin:parseInt(f.antMin,10)||0,canc:parseInt(f.canc,10)||0,termos:f.termos,ativo:f.ativo};
   if(S.ui.form==="novaArea"){o.id="a"+uid();o.antMax=90;S.areas.push(o);audit("Criou área comum",o.nome)}else{Object.assign(area(S.ui.form.slice(5)),o);audit("Alterou área comum",o.nome+" · "+(o.modo==="integral"?"período integral":"por turnos"))}
   S.ui.okArea=o.nome+" salvo.";S.ui.form=null;S.f={}},
  sNovoBloq:function(){S.ui.form="bloq";S.ui.okBloq="";S.f=S.real?{area:"todas",de:TODAY,ate:TODAY,motivo:""}:{area:"todas",de:"2026-12-24",ate:"2026-12-25",motivo:"Confraternização de fim de ano do condomínio"}},
