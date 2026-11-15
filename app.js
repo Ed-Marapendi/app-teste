@@ -268,14 +268,15 @@ function vLogin(){
  function rb(v,avt,t,sub){return '<button class="rolebtn" data-a="enter" data-v="'+v+'"><span class="av">'+avt+'</span><span class="grow">'+t+'<br><span class="small muted" style="font-weight:500">'+sub+'</span></span>'+ic("next")+'</button>'}
  var cx=S.conexao||{};
  h+='<div class="conexao '+(cx.st||"")+'" role="status"><span class="dotc"></span><span class="grow small">'+(cx.st==="ok"?esc(cx.msg):cx.st==="erro"?"Sem conexão com o servidor. "+esc(cx.msg||""):"Conferindo a conexão com o servidor…")+'</span>'+(cx.st==="erro"?'<button class="btn ghost sm" style="color:var(--sea)" data-a="testarConexao">Tentar de novo</button>':'')+'</div>';
- h+='<div class="demo"><div class="section-title">Só para conhecer · entrar com dados de exemplo</div>'+
+ if(CFG.ambiente!=="PRODUCAO")h+='<div class="demo"><div class="section-title">Só para conhecer · entrar com dados de exemplo</div>'+
  '<div class="xs muted" style="font-weight:700">MORADORES DO MESMO APARTAMENTO (1203)</div>'+
  rb("morador:1","MS","Maria Souza","Proprietária · apto 1203")+rb("morador:2","PS","Pedro Souza","Proprietário · apto 1203")+
  '<div class="xs muted" style="font-weight:700;margin-top:4px">OUTRAS UNIDADES E EQUIPE</div>'+
  rb("morador:8","LC","Luana Costa","Inquilina · apto 1507")+
  rb("portaria",ic("box",18),"Portaria","Acesso único, usado no celular da portaria")+
  rb("sindico:23","RA","Roberto Almeida","Síndico")+rb("sindico:24","AR","Ana Ribeiro","Administração")+
- '<p class="hint">Todos os perfis compartilham os mesmos dados: o que um faz aparece para os outros. Recarregar a página volta aos dados de exemplo.</p></div></main>';
+ '<p class="hint">Todos os perfis compartilham os mesmos dados: o que um faz aparece para os outros. Recarregar a página volta aos dados de exemplo.</p></div>';
+ h+='</main>';
  return h;
 }
 
@@ -1162,7 +1163,7 @@ var A={
   if(S.real&&((S.role==="morador"&&(v==="inicio"||v==="reservas"))||(S.role==="portaria"&&v==="pres")||(S.role==="sindico"&&["painel","reservas","areas","bloqueios"].indexOf(v)>=0)))carregarReservas();
   if(S.real&&S.role==="sindico"&&v==="encomendas")carregarEncAdm()},
  goMais:function(v){if(S.real&&S.role==="sindico"&&v==="usuarios")setTimeout(carregarPedidos,0);if(S.real&&S.role==="sindico"&&v==="encomendas")setTimeout(carregarEncAdm,0);if(S.real&&S.role==="sindico"&&(v==="usuarios"||v==="config"))setTimeout(function(){carregarAdmin().then(function(){if(S.screen==="config"){S.f={};render()}})},0);go(v)},
- enter:function(v){var p=String(v).split(":"),role=p[0];if(p[1])S.me[role]=+p[1];S.role=role;S.ui={};S.porteiro=null;S.lf=null;S.nr=null;go(role==="morador"?"inicio":role==="portaria"?"enc":"painel")},
+ enter:function(v){if(CFG.ambiente==="PRODUCAO")return;var p=String(v).split(":"),role=p[0];if(p[1])S.me[role]=+p[1];S.role=role;S.ui={};S.porteiro=null;S.lf=null;S.nr=null;go(role==="morador"?"inicio":role==="portaria"?"enc":"painel")},
  escolhePorteiro:function(v){var pp=user(v);if(S.cfg.exigirPin&&(S.real?pp.temPin:pp.pin)){S.f={pinIn:""};S.ui.errForm="";S.sheet={t:"pin",id:v};return}S.porteiro=v;S.portLast=Date.now();toast("Olá, "+pp.nome.split(" ")[0]+"! O que você registrar fica no seu nome.")},
  trocaPorteiro:function(){S.porteiro=null;S.cracha="";S.ui.okReg="";S.ui.okRet="";S.f={};if(S.screen==="pres")S.screen="enc"},
  locNovaBtn:function(){S.lf=novoLf();go("locNova")},
@@ -1606,7 +1607,7 @@ function crachaVencido(e){if(e&&e.codigo==="PIN_EXPIRADO"){S.fGuardado=S.f;S.por
 function testarConexao(){
  S.conexao={st:"testando"};render();
  chamarServidor("sistema.ping",{},{silencioso:true}).then(function(d){
-  S.conexao={st:"ok",msg:"Servidor de "+(d.ambiente||"?")+" conectado · servidor "+d.servidor+" · "+d.hora};render();
+  S.conexao={st:"ok",msg:(d.ambiente==="PRODUCAO"?"Conectado ao servidor do condomínio":"Servidor de "+(d.ambiente||"?")+" conectado")+" · versão "+d.servidor+" · "+d.hora};render();
  },function(e){S.conexao={st:"erro",msg:e.mensagem};render()});
 }
 window.addEventListener("pwa-mudou",function(){render()});
