@@ -795,7 +795,7 @@ function painelReal(PN){
  return h;
 }
 function carregarPainel(){return chamarServidor("painel.carregar",{},{silencioso:true}).then(function(d){S.painel=d;render()},function(e){toast(e.mensagem)})}
-function baixarCsv(nome,linhas){var t="\ufeff"+linhas.map(function(l){return l.map(function(c){c=c==null?"":String(c);return /[";\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c}).join(";")}).join("\r\n");
+function baixarCsv(nome,linhas){var t="\ufeff"+linhas.map(function(l){return l.map(function(c){c=c==null?"":String(c);if(/^[=+\-@\t\r]/.test(c))c="'"+c;return /[";\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c}).join(";")}).join("\r\n");
  var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([t],{type:"text/csv;charset=utf-8"}));a.download=nome;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1000)}
 function numBr(v){return String(Number(v||0).toFixed(2)).replace(".",",")}
 function mesTexto(m){var p=m.split("-"),n=MES[+p[1]-1];return n.charAt(0).toUpperCase()+n.slice(1)+" de "+p[0]}
@@ -1162,7 +1162,7 @@ var A={
  goMais:function(v){if(S.real&&S.role==="sindico"&&v==="usuarios")setTimeout(carregarPedidos,0);if(S.real&&S.role==="sindico"&&v==="encomendas")setTimeout(carregarEncAdm,0);if(S.real&&S.role==="sindico"&&(v==="usuarios"||v==="config"))setTimeout(function(){carregarAdmin().then(function(){if(S.screen==="config"){S.f={};render()}})},0);go(v)},
  enter:function(v){var p=String(v).split(":"),role=p[0];if(p[1])S.me[role]=+p[1];S.role=role;S.ui={};S.porteiro=null;S.lf=null;S.nr=null;go(role==="morador"?"inicio":role==="portaria"?"enc":"painel")},
  escolhePorteiro:function(v){var pp=user(v);if(S.cfg.exigirPin&&(S.real?pp.temPin:pp.pin)){S.f={pinIn:""};S.ui.errForm="";S.sheet={t:"pin",id:v};return}S.porteiro=v;S.portLast=Date.now();toast("Olá, "+pp.nome.split(" ")[0]+"! O que você registrar fica no seu nome.")},
- trocaPorteiro:function(){S.porteiro=null;S.ui.okReg="";S.ui.okRet="";S.f={};if(S.screen==="pres")S.screen="enc"},
+ trocaPorteiro:function(){S.porteiro=null;S.cracha="";S.ui.okReg="";S.ui.okRet="";S.f={};if(S.screen==="pres")S.screen="enc"},
  locNovaBtn:function(){S.lf=novoLf();go("locNova")},
  locListaBtn:function(){go("loc")},
  abrirLoc:function(v){if(S.role==="morador"){go("locDet")}S.ui.locId=String(v);window.scrollTo(0,0)},
@@ -1227,7 +1227,7 @@ var A={
  testarConexao:function(){testarConexao()},
  sair:function(){if(S.real){chamarServidor("sessao.sair",{},{grava:true,silencioso:true}).catch(function(){});sairLocal();return}S.role=null;S.screen=null;S.sheet=null;S.login.step="email"},
  sairTodos:function(){if(S.real){chamarServidor("sessao.sairTodos",{},{grava:true}).then(function(d){sairLocal();toast("Você saiu de todos os aparelhos ("+d.encerradas+"). Para entrar de novo, peça um novo código.");render()},function(e){toast(e.mensagem);render()});return}audit("Saiu de todos os aparelhos",me().nome);A.sair();toast("Você saiu de todos os aparelhos. Para entrar de novo, use um novo código.")},
- pinOk:function(){var pp=user(S.sheet.id);if(S.real){chamarServidor("portaria.conferirPin",{id:pp.id,pin:soDig(S.f.pinIn)},{grava:true}).then(function(){S.sheet=null;S.ui.errForm="";S.f={};S.porteiro=pp.id;S.portLast=Date.now();toast("Olá, "+pp.nome.split(" ")[0]+"! O que você registrar fica no seu nome.");render()},function(e){S.ui.errForm=e.mensagem;S.f.pinIn="";render()});return}if(S.f.pinIn!==pp.pin){S.ui.errForm="PIN incorreto. Tente de novo.";S.f.pinIn="";return}S.sheet=null;S.ui.errForm="";S.f={};S.porteiro=pp.id;S.portLast=Date.now();toast("Olá, "+pp.nome.split(" ")[0]+"! O que você registrar fica no seu nome.")},
+ pinOk:function(){var pp=user(S.sheet.id);if(S.real){chamarServidor("portaria.conferirPin",{id:pp.id,pin:soDig(S.f.pinIn)},{grava:true}).then(function(d){S.cracha=d&&d.cracha||"";S.sheet=null;S.ui.errForm="";S.f=S.fGuardado||{};S.fGuardado=null;S.porteiro=pp.id;S.portLast=Date.now();toast("Olá, "+pp.nome.split(" ")[0]+"! O que você registrar fica no seu nome.");render()},function(e){S.ui.errForm=e.mensagem;S.f.pinIn="";render()});return}if(S.f.pinIn!==pp.pin){S.ui.errForm="PIN incorreto. Tente de novo.";S.f.pinIn="";return}S.sheet=null;S.ui.errForm="";S.f={};S.porteiro=pp.id;S.portLast=Date.now();toast("Olá, "+pp.nome.split(" ")[0]+"! O que você registrar fica no seu nome.")},
  /* pedidos de cadastro */
  cadAbrir:function(){S.cad=novoCad("publico");S.ui.errForm="";S.login.step="cadastro"},
  cdVoltar:function(){S.cad=null;S.ui.errForm="";S.login.step="email"},
@@ -1334,11 +1334,11 @@ var A={
  waDet:function(){S.ui.waDet=!S.ui.waDet},
  waEditar:function(){S.sheet.stage="prev"},
  waEnviar:function(){var e=encPorId(S.sheet.id),ds=waDest(e.apto),dest=ds.filter(function(u){return String(u.id)===String(S.f.waDest)})[0]||ds[0];
-  if(S.real)chamarServidor("encomendas.registrarWhatsApp",{porteiroId:S.porteiro,id:e.id,para:dest.id},{grava:true,silencioso:true}).then(function(d){mesclarEnc(d.encomendas.map(encDoServidor));render()},function(er){toast(er.mensagem);render()});
+  if(S.real)chamarServidor("encomendas.registrarWhatsApp",{porteiroId:S.porteiro,cracha:S.cracha,id:e.id,para:dest.id},{grava:true,silencioso:true}).then(function(d){mesclarEnc(d.encomendas.map(encDoServidor));render()},function(er){crachaVencido(er);toast(er.mensagem);render()});
   S.sheet.sent=true;S.sheet.hora=hhmm();loteDe(e).forEach(function(x){x.waEm="Hoje "+S.sheet.hora+" · para "+dest.nome.split(" ")[0]});audit("Avisou no WhatsApp","Apto "+e.apto+" · "+e.tipo+" · para "+dest.nome)},
  waVoltar:function(){S.sheet=null;delete S.f.waDest;delete S.f.waMsg;delete S.f.waTeste;toast("Aviso por WhatsApp registrado.")},
  pConfRet:function(){if(!S.f.quem||(S.f.quem==="__outra"&&!(S.f.outra||"").trim())){S.ui.errForm="Informe quem está retirando.";return}S.ui.errForm="";var e=encPorId(S.sheet.id),f=S.f,quem=f.quem==="__outra"?f.outra.trim():f.quem,u=me();
-  if(S.real){if(S.ui.ocupado)return;S.ui.ocupado=true;chamarServidor("encomendas.retirar",{porteiroId:S.porteiro,id:e.id,retiradaPor:quem},{grava:true}).then(function(d){var x=encDoServidor(d);mesclarEnc([x]);S.sheet=null;S.f={};S.portLast=Date.now();S.ui.okRet="Retirada do apto "+x.apto+" registrada às "+d.retiradaHora+" (retirado por "+quem+").";render()},function(er){S.ui.errForm=er.mensagem;render()}).finally(function(){S.ui.ocupado=false});return}
+  if(S.real){if(S.ui.ocupado)return;S.ui.ocupado=true;chamarServidor("encomendas.retirar",{porteiroId:S.porteiro,cracha:S.cracha,id:e.id,retiradaPor:quem},{grava:true}).then(function(d){var x=encDoServidor(d);mesclarEnc([x]);S.sheet=null;S.f={};S.portLast=Date.now();S.ui.okRet="Retirada do apto "+x.apto+" registrada às "+d.retiradaHora+" (retirado por "+quem+").";render()},function(er){crachaVencido(er);S.ui.errForm=er.mensagem;render()}).finally(function(){S.ui.ocupado=false});return}
   e.status="retirada";e.por=quem;e.em="Hoje "+hhmm();e.entregue=u.nome;S.sheet=null;
   audit("Registrou retirada","Apto "+e.apto+" · "+e.tipo+" · retirado por "+quem);
   S.ui.okRet="Retirada do apto "+e.apto+" registrada às "+hhmm()+" (retirado por "+quem+").";S.f={}},
@@ -1537,10 +1537,10 @@ function carregarPortaria(){return chamarServidor("portaria.carregar",{},{silenc
  if(S.porteiro&&!user(S.porteiro))S.porteiro=null;render()},function(e){toast(e.mensagem);render()})}
 function msgAvisoEnc(av,nMor){if(!nMor)return "Unidade sem morador cadastrado: avise por interfone.";return av==="enviado"?"Os moradores já veem o aviso no app e receberam um e-mail.":av==="cota"?"Os moradores já veem o aviso no app. O e-mail sai assim que houver cota.":av==="invalido"?"Os moradores já veem o aviso no app. O e-mail cadastrado parece inválido.":"Os moradores já veem o aviso no app."}
 function registrarReal(){var f=S.f,un=f.un,n=f.itens.length;if(S.ui.ocupado)return;S.ui.ocupado=true;S.ui.okReg="";
- chamarServidor("encomendas.registrar",{porteiroId:S.porteiro,unidade:un,itens:f.itens.map(function(i){return {tipo:i.tipo,remetente:(i.rem||"").trim(),foto:i.foto||""}})},{grava:true}).then(function(d){
+ chamarServidor("encomendas.registrar",{porteiroId:S.porteiro,cracha:S.cracha,unidade:un,itens:f.itens.map(function(i){return {tipo:i.tipo,remetente:(i.rem||"").trim(),foto:i.foto||""}})},{grava:true}).then(function(d){
   var l=d.encomendas.map(encDoServidor);mesclarEnc(l);S.ui.lastEnc=l[0].id;S.portLast=Date.now();
   S.ui.okReg=(n>1?n+" encomendas registradas":"Registrada")+" para "+unLabel(un)+" às "+l[0].hora+" (código"+(n>1?"s ":" ")+l.map(function(x){return x.cod}).join(", ")+"). "+msgAvisoEnc(d.avisoEmail,d.moradores);
-  f.itens=[novoItem()];render()},function(e){toast(e.mensagem);render()}).finally(function(){S.ui.ocupado=false})}
+  f.itens=[novoItem()];render()},function(e){crachaVencido(e);toast(e.mensagem);render()}).finally(function(){S.ui.ocupado=false})}
 function carregarMinhasEnc(){return chamarServidor("encomendas.minhas",{},{silencioso:true}).then(function(l){S.encomendas=l.map(encDoServidor);render()},function(){})}
 function carregarAvisos(){return chamarServidor("avisos.listar",{},{silencioso:true}).then(function(l){var ap=(me()||{}).apto;S.notifs=l.map(function(a){return {id:a.id,apto:ap,txt:a.texto,q:a.criadoEm,lida:!!a.lido,ir:a.destino||""}});render()},function(){})}
 function carregarEncAdm(){return chamarServidor("encomendas.listar",{},{silencioso:true}).then(function(l){S.encomendas=l.map(encDoServidor);render()},function(e){toast(e.mensagem);render()})}
@@ -1599,6 +1599,8 @@ document.addEventListener("visibilitychange",function(){if(document.visibilitySt
 window.addEventListener("online",function(){verificarNovidades(true)});
 document.addEventListener("focusout",function(){setTimeout(function(){if(NOV.pend&&!editando())aplicarNovidades(false)},400)});
 
+/* Crachá vencido (PIN exigido): volta para a escolha do porteiro, que digita o PIN de novo. */
+function crachaVencido(e){if(e&&e.codigo==="PIN_EXPIRADO"){S.fGuardado=S.f;S.porteiro=null;S.cracha="";S.sheet=null;S.ui.okReg="";S.ui.okRet=""}}
 function testarConexao(){
  S.conexao={st:"testando"};render();
  chamarServidor("sistema.ping",{},{silencioso:true}).then(function(d){
