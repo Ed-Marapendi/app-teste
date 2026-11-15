@@ -1120,7 +1120,7 @@ function render(){
  var app=document.getElementById("app"),h;
  if(!S.role)h=vLogin();else if(S.role==="morador")h=vMorador();else if(S.role==="portaria")h=vPortaria();else h=vSindico();
  var act=document.activeElement,actId=act&&act.id,selS=act&&act.selectionStart,selE=act&&act.selectionEnd;
- app.innerHTML=h+vSheet()+(S.toast?'<div class="toast" role="status">'+esc(S.toast)+'</div>':'');
+ app.innerHTML=h+vSheet()+(S.toast?'<div class="toast" role="status">'+esc(S.toast)+'</div>':'')+(S.role&&S.ui.novidades?'<button class="novbar" data-a="verNovidades">'+ic("info",18)+'Há novidades. Toque para ver</button>':'');
  if(actId){var el=document.getElementById(actId);if(el&&el.focus){el.focus({preventScroll:true});try{if(selS!=null)el.setSelectionRange(selS,selE)}catch(e){}}}
  var key=S.role+"/"+S.screen+"/"+(S.ui.resId||"")+"/"+(S.ui.locId||"")+"/"+S.login.step+"/"+(S.ui.pedId||"")+"/"+(S.cad&&S.cad.res?1:0);if(key!==lastKey){window.scrollTo(0,0);lastKey=key}
  document.querySelectorAll("input[data-foto]").forEach(function(x){x.addEventListener("change",onFoto)});
@@ -1149,6 +1149,7 @@ function go(sc){S.screen=sc;S.sheet=null;S.f={};S.ui.form=null;S.ui.errForm="";S
 var A={
  go:function(v){if(v==="_mais"){S.sheet={t:"mais"};return}if(v==="_sair"){A.sair();return}if(v==="locNova"&&!S.lf)S.lf=novoLf();go(v);
   if(S.real&&S.role==="sindico"&&(v==="usuarios"||v==="config"))carregarAdmin().then(function(){if(S.screen==="config"){S.f={};render()}});
+  if(S.real&&S.role==="sindico"&&v==="usuarios")carregarPedidos();
   if(S.real&&S.role==="morador"&&v==="perfil")carregarPerfil();
   if(S.real&&S.role==="morador"&&(v==="inicio"||v==="encomendas"||v==="avisos")){carregarMinhasEnc();carregarAvisos()}
   if(S.real&&S.role==="portaria"&&(v==="enc"||v==="fila"))carregarPortaria();
@@ -1158,7 +1159,7 @@ var A={
   if(S.real&&((S.role==="morador"&&["inicio","loc","locDet"].indexOf(v)>=0)||(S.role==="portaria"&&v==="pres")||(S.role==="sindico"&&(v==="painel"||v==="locacoes"))))carregarLocacoes();
   if(S.real&&((S.role==="morador"&&(v==="inicio"||v==="reservas"))||(S.role==="portaria"&&v==="pres")||(S.role==="sindico"&&["painel","reservas","areas","bloqueios"].indexOf(v)>=0)))carregarReservas();
   if(S.real&&S.role==="sindico"&&v==="encomendas")carregarEncAdm()},
- goMais:function(v){if(S.real&&S.role==="sindico"&&v==="encomendas")setTimeout(carregarEncAdm,0);if(S.real&&S.role==="sindico"&&(v==="usuarios"||v==="config"))setTimeout(function(){carregarAdmin().then(function(){if(S.screen==="config"){S.f={};render()}})},0);go(v)},
+ goMais:function(v){if(S.real&&S.role==="sindico"&&v==="usuarios")setTimeout(carregarPedidos,0);if(S.real&&S.role==="sindico"&&v==="encomendas")setTimeout(carregarEncAdm,0);if(S.real&&S.role==="sindico"&&(v==="usuarios"||v==="config"))setTimeout(function(){carregarAdmin().then(function(){if(S.screen==="config"){S.f={};render()}})},0);go(v)},
  enter:function(v){var p=String(v).split(":"),role=p[0];if(p[1])S.me[role]=+p[1];S.role=role;S.ui={};S.porteiro=null;S.lf=null;S.nr=null;go(role==="morador"?"inicio":role==="portaria"?"enc":"painel")},
  escolhePorteiro:function(v){var pp=user(v);if(S.cfg.exigirPin&&(S.real?pp.temPin:pp.pin)){S.f={pinIn:""};S.ui.errForm="";S.sheet={t:"pin",id:v};return}S.porteiro=v;S.portLast=Date.now();toast("Olá, "+pp.nome.split(" ")[0]+"! O que você registrar fica no seu nome.")},
  trocaPorteiro:function(){S.porteiro=null;S.ui.okReg="";S.ui.okRet="";S.f={};if(S.screen==="pres")S.screen="enc"},
@@ -1272,6 +1273,7 @@ var A={
  fechaSheet:function(){S.sheet=null;S.ui.errForm=""},
  scrim:function(v,el,ev){if(ev.target===el)S.sheet=null},
  pwaInstalar:function(){pwa.instalar().then(function(ok){S.sheet=null;toast(ok?"Pronto! O ícone Marapendi foi adicionado à tela inicial.":"Instalação cancelada. Você pode instalar depois.")})},
+ verNovidades:function(){try{document.activeElement.blur()}catch(e){}aplicarNovidades(true)},
  sheet:function(v){S.sheet={t:v};if(v==="contato"&&S.real)chamarServidor("contato.carregar",{},{silencioso:true}).then(function(d){S.contato=d;render()},function(e){toast(e.mensagem)})},
  toastMsg:function(v){S.sheet=null;toast(v)},
  verTermos:function(v){S.sheet={t:"termos",id:v}},
@@ -1500,8 +1502,9 @@ function entrarReal(eu){
  S.reservas=[];S.bloqueios=[];carregarReservas();
  S.locacoes=[];carregarLocacoes();
  if(role==="sindico"){S.painel=null;carregarPainel()}
+ NOV.ultimo=null;NOV.pend=null;setTimeout(function(){verificarNovidades(true)},1500);
  render()}
-function sairLocal(){apagarToken();S.real=null;S.usuarios=S.usuarios.filter(function(u){return u.id!=="real"});S.role=null;S.screen=null;S.sheet=null;S.login={step:"email",email:"",codigo:"",err:""}}
+function sairLocal(){NOV.ultimo=null;NOV.pend=null;apagarToken();S.real=null;S.usuarios=S.usuarios.filter(function(u){return u.id!=="real"});S.role=null;S.screen=null;S.sheet=null;S.login={step:"email",email:"",codigo:"",err:""}}
 window.aoPerderSessao=function(msg){if(!S.real)return;sairLocal();toast(msg||"Entre novamente para continuar.");render()};
 function carregarPedidos(){return chamarServidor("cadastro.listar",{},{silencioso:true}).then(function(l){var lista=[];S.srvMor={};
  l.forEach(function(g){S.srvMor[g.pedido]=g.moradores||[];g.pessoas.forEach(function(p){lista.push({id:p.id,pedido:g.pedido,origem:g.origem,solicitante:g.solicitante,apto:g.unidade,criado:g.criadoEm,nome:p.nome,email:p.email,tel:p.telefone||"",semTel:!!p.semTelefone,vinc:p.vinculo,wa:!!p.whatsapp,status:p.status,decididoPor:p.decididoPor,decididoEm:p.decididoEm,motivo:p.motivoInterno,alertas:p.alertas||[]})})});
@@ -1558,6 +1561,43 @@ function aprovarReal(lista){var ok=[],er=[],ultimo="";
  return seq.then(function(){S.ui.okSol=ok.length?(ok.length===1?ok[0]+" aprovado(a). "+ultimo:ok.length+" pessoas aprovadas: "+ok.join(", ")+". Os e-mails de boas-vindas foram enviados ou estão na fila."):"";if(er.length)toast(er.join(" "));return carregarPedidos()})}
 function retomarSessao(){try{if(!localStorage.getItem("marapendi.token."+(CFG.ambiente||"X")))return}catch(e){return}
  chamarServidor("sessao.eu",{}).then(function(eu){if(!S.role)entrarReal(eu)},function(){})}
+
+/* ---------- atualização automática (Etapa 10.1) ----------
+ Com o app aberto na tela, pergunta ao servidor "mudou algo?" a cada 30 s (administração e portaria)
+ ou 2 min (moradores), e na hora em que a pessoa volta para o app. Se mudou, recarrega só o que mudou.
+ Se a pessoa estiver digitando, não mexe na tela: mostra "Há novidades. Toque para ver". */
+var NOV={ultimo:null,pend:null,ultimaConsulta:0};
+function intervaloNov(){return S.role==="morador"?120000:30000}
+function editando(){var a=document.activeElement;if(S.ui&&S.ui.ocupado)return true;if(!a||!/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))return false;return !/^(checkbox|radio|button|submit|file)$/.test(a.type||"")}
+function verificarNovidades(agora){if(!S.real||!S.role||document.visibilityState==="hidden")return;var t=Date.now();if(!agora&&t-NOV.ultimaConsulta<intervaloNov())return;if(t-NOV.ultimaConsulta<4000)return;NOV.ultimaConsulta=t;
+ chamarServidor("sistema.novidades",{},{silencioso:true}).then(function(d){var m=(d&&d.mud)||{};if(!NOV.ultimo){NOV.ultimo=m;return}
+  var mud=Object.keys(m).filter(function(k){return m[k]!==NOV.ultimo[k]});NOV.ultimo=m;if(!mud.length)return;
+  (NOV.pend||[]).forEach(function(k){if(mud.indexOf(k)<0)mud.push(k)});NOV.pend=mud;aplicarNovidades(false)},function(){})}
+function aplicarNovidades(pediu){if(!NOV.pend||!NOV.pend.length){if(S.ui.novidades){S.ui.novidades=false;render()}return}
+ if(!pediu&&editando()){if(!S.ui.novidades){S.ui.novidades=true;var a=document.activeElement,id=a&&a.id;render();if(id){var el=document.getElementById(id);if(el)el.focus({preventScroll:true})}}return}
+ var l=NOV.pend;NOV.pend=null;S.ui.novidades=false;recarregarAreas(l);if(pediu)render()}
+function recarregarAreas(l){var tem=function(k){return l.indexOf(k)>=0},sc=S.screen;
+ if(S.role==="sindico"){
+  if(tem("cadastro"))carregarPedidos();
+  if(tem("reservas"))carregarReservas();
+  if(tem("locacao"))carregarLocacoes();
+  if(tem("encomendas")&&sc==="encomendas")carregarEncAdm();
+  if(tem("admin")&&sc==="usuarios")carregarAdmin();
+  if(sc==="painel"&&(tem("cadastro")||tem("encomendas")||tem("painel")||tem("reservas")||tem("locacao")))carregarPainel();
+ }else if(S.role==="portaria"){
+  if(tem("encomendas")||tem("admin"))carregarPortaria();
+  if(tem("reservas")&&sc==="pres")carregarReservas();
+  if(tem("locacao")&&sc==="pres")carregarLocacoes();
+ }else{
+  if(tem("encomendas")||tem("avisos")){carregarMinhasEnc();carregarAvisos()}
+  if(tem("reservas"))carregarReservas();
+  if(tem("locacao"))carregarLocacoes();
+  if(tem("cadastro"))carregarMeusPedidos();
+ }}
+setInterval(function(){verificarNovidades(false)},5000);
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")verificarNovidades(true)});
+window.addEventListener("online",function(){verificarNovidades(true)});
+document.addEventListener("focusout",function(){setTimeout(function(){if(NOV.pend&&!editando())aplicarNovidades(false)},400)});
 
 function testarConexao(){
  S.conexao={st:"testando"};render();
