@@ -35,7 +35,7 @@
     var b = document.getElementById('atualizar');
     if (!b) return;
     b.hidden = false;
-    b.onclick = function () { location.reload(); };
+    b.onclick = function () { if (!(window.pwa && window.pwa.atualizarAgora())) location.reload(); };
   }
   window.mostrarAtualizar = mostrarAtualizar;
 

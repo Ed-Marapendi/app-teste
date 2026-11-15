@@ -255,7 +255,8 @@ function vLogin(){
   '<form class="stack g12" data-form="sendcode"><div class="fld"><label class="lbl" for="lg-email">E-mail</label><input id="lg-email" class="in" type="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" data-bind="login.email" value="'+esc(L.email)+'"></div>'+
   (L.err?'<div class="errmsg" role="alert">'+esc(L.err)+'</div>':'')+
   '<button class="btn block" type="submit">Enviar código</button></form>'+
-  '<p class="small muted" style="text-align:center">Ainda não tem acesso? Procure a administração para cadastrar seu e-mail ou <button class="linkbtn" data-a="cadAbrir">clique aqui para solicitar seu cadastro</button>.</p>';
+  '<p class="small muted" style="text-align:center">Ainda não tem acesso? Procure a administração para cadastrar seu e-mail ou <button class="linkbtn" data-a="cadAbrir">clique aqui para solicitar seu cadastro</button>.</p>'+
+  (window.pwa&&!pwa.instalado()?'<button class="btn out block" data-a="sheet" data-v="instalar">'+ic("phone",20)+'Instalar o app no celular</button>':'');
  }else{
   h+='<div class="stack"><h1 style="font-size:26px;font-weight:800">Digite o código</h1><p class="muted">Se o e-mail <strong>'+esc(L.email)+'</strong> estiver cadastrado, você vai receber um código de 6 dígitos. Ele vale por '+S.cfg.codigoMin+' minutos.</p><p class="small muted">Confira se o e-mail está certo. Se já tem cadastro, não precisa pedir de novo.</p></div>'+
   '<form class="stack g12" data-form="checkcode"><div class="fld"><label class="lbl" for="lg-codigo">Código de 6 dígitos</label><input id="lg-codigo" class="in otp1" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="000000" data-bind="login.codigo" value="'+esc(L.codigo||"")+'"></div>'+
@@ -538,7 +539,7 @@ function mPerfil(){
  '<p class="xs muted">O aviso dentro do app aparece sempre, mesmo com o e-mail desligado.'+(S.real?' E-mails de reservas e de locação vão para quem fez o pedido.':'')+'</p></section>'+
  (S.cfg.waAtivo?'<section class="card tight"><h2 class="h2">Aviso por WhatsApp</h2><button class="switchrow" data-a="waOptIn" aria-pressed="'+!!u.wa+'" '+(u.tel?'':'aria-disabled="true"')+'><span><b style="display:block">Receber aviso de encomendas</b><span class="small muted">'+(u.tel?'No número '+esc(u.tel)+', enviado pela portaria ('+esc(S.cfg.waNumero)+')':'Cadastre um telefone em Meus dados para ativar')+'</span></span><span class="toggle'+(u.wa?" on":"")+'"><i></i></span></button><p class="xs muted">Ao ativar, você autoriza a portaria a enviar avisos de encomenda para este número. Dá para desligar quando quiser.</p></section>':'');
  h+='<section class="card tight"><div class="list">'+
- '<button class="li" data-a="sheet" data-v="instalar">'+ic("phone")+'<span class="grow"><b>Instalar na tela inicial</b></span>'+ic("next",18)+'</button>'+
+ (window.pwa&&pwa.instalado()?'':'<button class="li" data-a="sheet" data-v="instalar">'+ic("phone")+'<span class="grow"><b>Instalar o app na tela inicial</b></span>'+ic("next",18)+'</button>')+
  '<button class="li" '+(S.real?'data-a="sheet" data-v="regras"':'data-a="verTermos" data-v="churras"')+'>'+ic("list")+'<span class="grow"><b>Regimento e termos de uso</b></span>'+ic("next",18)+'</button>'+
  '<button class="li" data-a="sheet" data-v="lgpd">'+ic("shield")+'<span class="grow"><b>Privacidade e meus dados</b></span>'+ic("next",18)+'</button>'+
  '<button class="li" data-a="sheet" data-v="contato">'+ic("info")+'<span class="grow"><b>Falar com a administração</b></span>'+ic("next",18)+'</button></div></section>';
@@ -1029,11 +1030,16 @@ function vSheet(){
   h=head("Termo de uso · "+a3.nome)+'<div class="wrap stack g12"><p class="small muted">Versão de '+esc(a3.termoVersao)+'.</p><a class="btn block" href="'+u3+'" target="_blank" rel="noopener">Abrir o termo (PDF)</a><p class="small muted">Se o celular baixar o arquivo, abra pelo aviso de download.</p></div>';}
  else if(s.t==="termos"){var a2=area(s.id);
   h=head("Regras de uso · "+a2.nome)+'<div class="wrap stack g12"><p>'+esc(a2.termos||REGRAS_PADRAO)+'</p>'+(a2.temTermo?'<button class="btn out block" data-a="abrirTermo" data-v="'+a2.id+'">Ler o termo de uso (PDF)</button>':'')+'<p class="small muted">Capacidade: '+a2.cap+' pessoas. Cancelamento sem custo até '+a2.canc+' h antes. A taxa de '+brl(a2.preco)+' é lançada no boleto do condomínio.</p></div>';}
- else if(s.t==="instalar"){
-  h=head("Instalar na tela inicial")+'<div class="wrap stack g12"><div class="card tight"><b>Android (Chrome)</b><p class="small">Abra o link do app, toque no menu ⋮ e escolha <b>Adicionar à tela inicial</b>.</p></div><div class="card tight"><b>iPhone (Safari)</b><p class="small">Abra o link do app, toque em <b>Compartilhar</b> e escolha <b>Adicionar à Tela de Início</b>.</p></div><p class="xs muted">O ícone abre o app direto, como um aplicativo comum.</p></div>';}
  else if(s.t==="lgpd"&&S.real){
   h=head("Privacidade e meus dados")+'<div class="wrap stack g12"><p class="small">O app guarda só o necessário: nome, e-mail, telefone (opcional), apartamento e vínculo, além das reservas, convidados, encomendas e pedidos de locação da sua unidade.</p><p class="small">Moradores de outras unidades não veem seus dados. Fotos de encomendas são apagadas '+S.cfg.fotoDias+' dias depois da retirada, e documentos de locação, '+S.cfg.locDocsDias+' dias depois da hospedagem.</p>'+
   '<button class="btn out block" data-a="lgpdPedir" data-v="copia">Pedir cópia dos meus dados</button><button class="btn ghost block" style="color:var(--bad)" data-a="lgpdPedir" data-v="exclusao">Pedir exclusão da conta</button><p class="xs muted">A administração responde em até 15 dias. A cópia chega no seu e-mail.</p></div>';}
+ else if(s.t==="instalar"){var pl=window.pwa?pwa.plataforma():"outro",passos=function(l){return '<ol class="stack" style="gap:14px;padding-left:22px;font-size:17px;line-height:1.45">'+l.map(function(x){return '<li>'+x+'</li>'}).join("")+'</ol>'};
+  h=head("Instalar o app")+'<div class="wrap stack g12" style="padding-bottom:24px">'+
+  (window.pwa&&pwa.instalado()?'<p style="font-size:17px">O app já está instalado neste aparelho. Abra pelo ícone <b>Marapendi</b> na tela inicial.</p>':
+   window.pwa&&pwa.podeInstalar()?'<p style="font-size:17px">Com o app instalado, o ícone <b>Marapendi</b> fica na tela inicial do celular, como os outros aplicativos.</p><button class="btn block" style="min-height:56px;font-size:18px" data-a="pwaInstalar">Instalar agora</button><p class="small muted">É gratuito e não ocupa quase nada de espaço.</p>':
+   pl==="ios"?'<p style="font-size:17px">No iPhone, faça assim:</p>'+passos(['Abra este endereço no <b>Safari</b> (o navegador com o ícone de bússola).','Toque no botão <b>Compartilhar</b>: o quadradinho com uma seta para cima, na barra de baixo da tela.','Role as opções e toque em <b>Adicionar à Tela de Início</b>.','Toque em <b>Adicionar</b>, no canto de cima.'])+'<p class="small muted">Pronto: o ícone <b>Marapendi</b> aparece na tela inicial.</p>':
+   pl==="android"?'<p style="font-size:17px">No Android, faça assim:</p>'+passos(['Abra este endereço no <b>Chrome</b>.','Toque nos <b>três pontinhos</b> (⋮), no canto de cima da tela.','Toque em <b>Instalar app</b> ou em <b>Adicionar à tela inicial</b>.','Confirme tocando em <b>Instalar</b>.'])+'<p class="small muted">Pronto: o ícone <b>Marapendi</b> aparece na tela inicial.</p>':
+   '<p style="font-size:17px">No computador, use o Chrome ou o Edge e clique no ícone de instalar, no fim da barra de endereço. No celular, abra este mesmo endereço e toque em <b>Instalar o app no celular</b>.</p>')+'</div>';}
  else if(s.t==="regras"){var ars=S.areas.filter(function(x){return x.ativo});
   h=head("Regimento e termos de uso")+'<div class="wrap stack g12">'+(ars.length?'<div class="card tight"><div class="list">'+ars.map(function(x){return '<button class="li" data-a="verTermos" data-v="'+x.id+'"><span class="grow"><b>'+esc(x.nome)+'</b><span class="xs muted" style="display:block">'+(x.temTermo?"Termo de uso em PDF":"Regras de uso")+'</span></span>'+ic("next",18)+'</button>'}).join("")+'</div></div>':'<p class="small muted">Nenhum espaço cadastrado.</p>')+'<p class="xs muted">Para o regimento interno completo, fale com a administração.</p></div>';}
  else if(s.t==="lgpd"){
@@ -1265,6 +1271,7 @@ var A={
   audit("Reprovou cadastro",x.nome+" · apto "+x.apto+" · "+m);S.ui.okSol=x.nome+": pedido reprovado. Enviamos e-mail pedindo para procurar a administração.";S.sheet=null;S.f={}},
  fechaSheet:function(){S.sheet=null;S.ui.errForm=""},
  scrim:function(v,el,ev){if(ev.target===el)S.sheet=null},
+ pwaInstalar:function(){pwa.instalar().then(function(ok){S.sheet=null;toast(ok?"Pronto! O ícone Marapendi foi adicionado à tela inicial.":"Instalação cancelada. Você pode instalar depois.")})},
  sheet:function(v){S.sheet={t:v};if(v==="contato"&&S.real)chamarServidor("contato.carregar",{},{silencioso:true}).then(function(d){S.contato=d;render()},function(e){toast(e.mensagem)})},
  toastMsg:function(v){S.sheet=null;toast(v)},
  verTermos:function(v){S.sheet={t:"termos",id:v}},
@@ -1558,6 +1565,8 @@ function testarConexao(){
   S.conexao={st:"ok",msg:"Servidor de "+(d.ambiente||"?")+" conectado · servidor "+d.servidor+" · "+d.hora};render();
  },function(e){S.conexao={st:"erro",msg:e.mensagem};render()});
 }
+window.addEventListener("pwa-mudou",function(){render()});
+try{if(/[?&]cadastro(=|&|$)/.test(location.search)&&!localStorage.getItem("marapendi.token."+(CFG.ambiente||"X"))){S.cad=novoCad("publico");S.login.step="cadastro"}}catch(e){}
 render();
 testarConexao();
 retomarSessao();
