@@ -203,10 +203,12 @@ function fmtCriado(c){return c?c.slice(8,10)+"/"+c.slice(5,7)+" às "+c.slice(11
 function duplicidades(){var out=[],vis={};S.reservas.filter(ativa).forEach(function(r){S.reservas.forEach(function(o){if(o.id!==r.id&&ativa(o)&&o.area===r.area&&o.data===r.data&&(r.turno==="integral"||o.turno==="integral"||r.turno===o.turno)){var k=[String(r.id),String(o.id)].sort().join("-");if(!vis[k]){vis[k]=1;out.push([r,o].sort(function(a,b){return (a.criado||"")<(b.criado||"")?-1:1}))}}})});return out}
 function soDig(t){return String(t||"").replace(/\D/g,"")}
 function ativa(r){return r.status==="confirmada"||r.status==="aguardando"}
-function bloqueio(areaId,data){return S.bloqueios.filter(function(b){return (b.area==="todas"||b.area===areaId)&&data>=b.de&&data<=b.ate})[0]}
+function bloqueio(areaId,data,turno){return S.bloqueios.filter(function(b){var t=b.turnos||[];return (b.area==="todas"||b.area===areaId)&&data>=b.de&&data<=b.ate&&(!t.length||turno==="integral"||(!!turno&&t.indexOf(String(turno))>=0))})[0]}
+function bloqueiosTurno(areaId,data){return S.bloqueios.filter(function(b){return (b.turnos||[]).length&&b.area===areaId&&data>=b.de&&data<=b.ate})}
+function nomesTurnos(a,ids){return (a&&a.turnos||[]).filter(function(t){return (ids||[]).indexOf(String(t.id))>=0}).map(function(t){return t.nome}).join(", ")}
 function turnoLabel(a,t){if(t==="integral")return "Período integral · "+a.abre.replace(":00","h")+"–"+a.fecha.replace(":00","h");var x=a.turnos.filter(function(z){return z.id===t})[0];return x?x.nome+" · "+x.ini.replace(":00","h")+"–"+x.fim.replace(":00","h"):"—"}
 function conflito(areaId,data,turno,ignore){
- var b=bloqueio(areaId,data); if(b)return {tipo:"bloq",msg:"Data bloqueada pela administração: "+b.motivo+"."};
+ var b=bloqueio(areaId,data,turno); if(b)return {tipo:"bloq",msg:((b.turnos||[]).length?"Turno bloqueado pela administração: ":"Data bloqueada pela administração: ")+b.motivo+"."};
  var r=S.reservas.filter(function(r){return r.id!==ignore&&r.area===areaId&&r.data===data&&ativa(r)&&(turno==="integral"||r.turno==="integral"||r.turno===turno)})[0];
  if(r)return {tipo:"ocup",msg:area(areaId).nome+" já reservada nesta data"+(r.apto?" (apto "+r.apto+")":"")+"."};
  return null;
@@ -217,7 +219,8 @@ function diaStatus(a,data,turnoSel,adm){
  if(bloqueio(a.id,data))return "bloq";
  if(a.modo==="integral")return conflito(a.id,data,"integral")?"ocup":"livre";
  var livres=a.turnos.filter(function(t){return !conflito(a.id,data,t.id)});
- return livres.length?"livre":"ocup";
+ if(livres.length)return "livre";
+ return a.turnos.length&&a.turnos.every(function(t){return bloqueio(a.id,data,t.id)})?"bloq":"ocup";
 }
 function statusPill(st){var m={confirmada:["Confirmada","p-ok"],aguardando:["Aguardando aprovação","p-warn"],cancelada:["Cancelada","p-off"],recusada:["Recusada","p-bad"]}[st];return '<span class="pill '+m[1]+'">'+m[0]+'</span>'}
 function avisoPill(e){var m={email:["E-mail enviado","p-ok"],cota:["Só no app · cota de e-mail","p-warn"],invalido:["Só no app · e-mail inválido","p-bad"],pausado:["Só no app · e-mail pausado","p-sea"]}[e.aviso]||["Aviso no app","p-sea"];return '<span class="pill '+m[1]+'">'+m[0]+'</span>'}
@@ -389,7 +392,7 @@ function meusAvisosNaoLidos(){var u=me();return S.notifs.filter(function(n){retu
 function vMorador(){
  var sc=S.screen||"inicio", body="";
  if(sc==="inicio")body=mInicio();
- else if(sc==="reservas")body=mReservas();
+ else if(sc==="reservas")body=aguardando("res")?carregandoTela():mReservas();
  else if(sc==="reserva")body=mReservaDet();
  else if(sc==="encomendas")body=mEncomendas();
  else if(sc==="perfil")body=mPerfil();
@@ -466,6 +469,7 @@ function calAdmin(){
  if(f.data){var st=diaStatus(a,f.data,null,true),rs=S.reservas.filter(function(r){return r.area===a.id&&r.data===f.data&&ativa(r)}),b=bloqueio(a.id,f.data);
   h+='<div class="card tight" style="background:var(--bg)"><b>'+fmtLong(f.data)+'</b>';
   if(b)h+='<div class="row between wrapr"><span class="pill p-bad">Bloqueado</span><span class="xs muted">por '+esc(b.autor)+'</span></div><div class="small">'+esc(b.motivo)+'</div>';
+  if(!b)bloqueiosTurno(a.id,f.data).forEach(function(x){h+='<div class="row between wrapr"><span class="pill p-bad">Turno bloqueado: '+esc(nomesTurnos(a,x.turnos))+'</span><span class="xs muted">por '+esc(x.autor)+'</span></div><div class="small">'+esc(x.motivo)+'</div>'});
   rs.forEach(function(r){h+='<div class="row between wrapr"><span class="small"><b>Apto '+r.apto+'</b> · '+esc(r.nome)+'<span class="xs muted" style="display:block">'+esc(turnoLabel(a,r.turno))+'</span></span>'+statusPill(r.status)+'</div>'});
   if(!b&&st==="livre")h+='<div class="small">'+(rs.length?"Ainda há turno livre neste dia.":"Dia livre.")+'</div><button class="btn sm" data-a="calIncluir">'+ic("calplus",18)+'Incluir reserva neste dia</button>';
   h+='</div>';
@@ -491,7 +495,7 @@ function mReservas(){
  '<p class="hint">Reservas com '+a.antMin+' a '+a.antMax+' dias de antecedência.</p></section>';
  h+='<section class="stack"><div class="lbl">3. Período</div>';
  if(a.modo==="integral")h+='<div class="chips"><span class="chip on" style="display:inline-flex;align-items:center">'+esc(turnoLabel(a,"integral"))+'</span></div><p class="hint">Este espaço é reservado por período integral.</p>';
- else h+='<div class="chips">'+a.turnos.map(function(t){var oc=N.data&&conflito(a.id,N.data,t.id);return '<button class="chip'+(N.turno===t.id?" on":"")+'" data-a="nrTurno" data-v="'+t.id+'" '+(oc?'disabled style="opacity:.45;text-decoration:line-through"':'')+'>'+esc(turnoLabel(a,t.id))+'</button>'}).join("")+'</div>';
+ else h+='<div class="chips">'+a.turnos.map(function(t){var oc=N.data&&conflito(a.id,N.data,t.id);return '<button class="chip'+(N.turno===t.id?" on":"")+'" data-a="nrTurno" data-v="'+t.id+'" '+(oc?'disabled style="opacity:.45;text-decoration:line-through"':'')+'>'+esc(turnoLabel(a,t.id))+(oc&&oc.tipo==="bloq"?" · bloqueado":"")+'</button>'}).join("")+'</div>';
  h+='</section>';
  var turno=a.modo==="integral"?"integral":N.turno, pronto=N.data&&turno&&N.aceite;
  h+='<section class="card"><h2 class="h2">Resumo</h2>'+
@@ -700,7 +704,9 @@ function vPortaria(){
  var p=S.porteiro?user(S.porteiro):null;
  var hb='background:transparent;color:var(--on-palm);border:1.5px solid var(--palm-soft)';
  var head='<header class="top palm wrap"><div class="grow"><div class="xs" style="color:var(--palm-soft);font-weight:700;letter-spacing:.05em">PORTARIA · ED. MARAPENDI</div><h1 style="font-size:18px">'+(p?esc(p.nome):"Acesso da portaria")+'</h1>'+(p?'<div class="sub">'+esc(p.turno||"")+'</div>':'')+'</div>'+(p?'<button class="btn sm" style="'+hb+'" data-a="trocaPorteiro" aria-label="Trocar porteiro" title="Trocar porteiro">'+ic("swap",18)+'Trocar</button>':'')+'<button class="btn sm" style="'+hb+'" data-a="sair">Sair</button></header>';
- if((sc==="enc"||sc==="fila")&&!p)body=pQuem(sc);
+ if(sc!=="pres"&&aguardando("port"))body=carregandoTela();
+ else if(sc==="pres"&&aguardando("res"))body=carregandoTela();
+ else if((sc==="enc"||sc==="fila")&&!p)body=pQuem(sc);
  else if(sc==="enc")body=pRegistrar();else if(sc==="fila")body=pFila();else body=pAgenda();
  var pend=S.encomendas.filter(function(e){return e.status==="pendente"}).length;
  return head+body+nav([{v:"enc",i:"calplus",l:"Registrar",on:sc==="enc"},{v:"fila",i:"box",l:"Retiradas",on:sc==="fila",badge:pend},{v:"pres",i:"cal",l:"Agenda",on:sc==="pres"}]);
@@ -744,10 +750,13 @@ function pFila(){
 }
 /* ================= SÍNDICO ================= */
 var SMENU=[["painel","Painel","grid"],["reservas","Reservas","cal"],["locacoes","Locação / temporada","key"],["usuarios","Unidades e usuários","users"],["encomendas","Encomendas","box"],["areas","Áreas comuns","home"],["bloqueios","Bloqueios de agenda","ban"],["relatorios","Relatórios","chart"],["auditoria","Auditoria","list"],["config","Configurações","gear"]];
+function carregandoTela(){return '<main class="wrap page"><section class="card" style="text-align:center;padding:28px 18px"><p style="font-weight:700;font-size:17px">Carregando…</p><p class="small muted">Buscando as informações do condomínio.</p><button class="btn out sm" data-a="recarregar" style="margin-top:12px">Tentar de novo</button></section></main>'}
+function aguardando(k){return !!(S.real&&S.carga&&!S.carga[k])}
 function vSindico(){
  var sc=S.screen||"painel",t=SMENU.filter(function(m){return m[0]===sc})[0],body;
  var head=topbar(t[1],sc==="painel"?fmtLong(TODAY):"Ed. Marapendi · "+(me().perfil==="sindico"?"Síndico":"Administração"),{palm:true,right:sc==="painel"?'<button class="btn sm" style="background:transparent;color:var(--on-palm);border:1.5px solid var(--palm-soft)" data-a="sair">Sair</button>':""});
- body={painel:sPainel,reservas:sReservas,locacoes:sLocacoes,usuarios:sUsuarios,encomendas:sEncomendas,areas:sAreas,bloqueios:sBloqueios,relatorios:sRelatorios,auditoria:sAuditoria,config:sConfig}[sc]();
+ body=((sc==="usuarios"||sc==="config"||sc==="encomendas")&&aguardando("adm"))||((sc==="reservas"||sc==="areas"||sc==="bloqueios")&&aguardando("res"))?carregandoTela():
+  {painel:sPainel,reservas:sReservas,locacoes:sLocacoes,usuarios:sUsuarios,encomendas:sEncomendas,areas:sAreas,bloqueios:sBloqueios,relatorios:sRelatorios,auditoria:sAuditoria,config:sConfig}[sc]();
  var maisOn=["encomendas","areas","bloqueios","relatorios","auditoria","config"].indexOf(sc)>=0;
  var ag=S.reservas.filter(function(r){return r.status==="aguardando"}).length,lp=S.locacoes.filter(function(l){return l.status==="pendente"}).length;
  var sp=solPendentes(),badges={reservas:ag||"",locacoes:lp||"",usuarios:sp||""};
@@ -787,7 +796,7 @@ function sPainel(){
 function painelReal(PN){
  var e=PN.emails,h='';
  h+='<section class="card"><div class="row between wrapr"><h2 class="h2">E-mails com falha</h2>'+(e.falhas.some(function(x){return x.status!=="invalido"})?'<button class="btn out sm" data-a="pnReenviar">Reenviar agora</button>':'')+'</div>'+
-  '<p class="small muted">Hoje: '+e.hoje+' de '+e.cota+' e-mails ('+e.reserva+' guardados para códigos de acesso).'+(e.pausados.length?' <b style="color:var(--warn)">Pausados: '+esc(e.pausados.join(", "))+'</b> (aviso só no app; mude em Configurações).':'')+'</p>'+
+  '<p class="small muted">Hoje: '+e.hoje+' de '+e.cota+' e-mails'+(e.codigos!==undefined?' · '+e.codigos+' código(s) de acesso. Os avisos ainda podem usar <b>'+e.livresAvisos+'</b>'+(e.reservaRestante?' ('+e.reservaRestante+' guardados para os próximos códigos).':'.'):' ('+e.reserva+' guardados para códigos de acesso).')+(e.pausados.length?' <b style="color:var(--warn)">Pausados: '+esc(e.pausados.join(", "))+'</b> (aviso só no app; mude em Configurações).':'')+'</p>'+
   (e.falhas.length?'<div class="list">'+e.falhas.map(function(x){return '<div class="li" style="align-items:flex-start"><span class="grow small"><b>'+esc(x.tipo)+'</b> · '+esc(x.quando)+'<span style="display:block">'+esc(x.assunto)+'</span><span class="xs muted" style="display:block">Para: '+esc(x.para)+'</span><span class="xs" style="display:block;color:'+(x.status==="pendente"?"var(--warn)":"var(--bad)")+';font-weight:700">'+esc(x.situacao)+'</span></span>'+
    '<span class="stack" style="gap:6px">'+(x.status!=="invalido"?'<button class="btn out sm" data-a="pnReenviar" data-v="'+x.id+'">Reenviar</button>':'')+'<button class="btn ghost sm" data-a="pnDescartar" data-v="'+x.id+'">Resolvido</button></span></div>'}).join("")+'</div>':'<p class="small muted">Nenhuma falha de envio nos últimos 14 dias. O aviso no app aparece sempre, mesmo quando o e-mail não sai.</p>')+'</section>';
  h+='<section class="card"><h2 class="h2">Pedidos de privacidade</h2>'+(PN.lgpd.length?'<div class="list">'+PN.lgpd.map(function(p){return '<div class="li" style="align-items:flex-start"><span class="grow small"><b>'+esc(p.rotulo)+'</b> · apto '+esc(p.unidade)+'<span style="display:block">'+esc(p.quem)+' · pedido em '+esc(p.quando)+'</span><span class="xs" style="display:block;color:'+(p.dias>=10?"var(--bad)":"var(--muted)")+';font-weight:700">'+(15-p.dias>0?"Faltam "+(15-p.dias)+" dia(s) do prazo de 15":"Prazo de 15 dias vencido")+'</span>'+
@@ -959,12 +968,14 @@ function sBloqueios(){
  if(S.ui.form==="bloq"){
   h+='<section class="card" style="border:2px solid var(--sea)"><div class="row between"><h2 class="h2">Novo bloqueio</h2><button class="iconbtn ghost" data-a="sFechaForm" aria-label="Fechar">'+ic("x")+'</button></div>'+
   '<div class="fld"><label class="lbl" for="b-area">Espaço</label><select id="b-area" class="in" data-bind="f.area"><option value="todas">Todos os espaços</option>'+S.areas.map(function(a){return '<option value="'+a.id+'"'+(f.area===a.id?" selected":"")+'>'+esc(a.nome)+'</option>'}).join("")+'</select></div>'+
+  (function(){var ab=f.area&&f.area!=="todas"?area(f.area):null;if(!ab||ab.modo!=="turnos"||!(ab.turnos||[]).length)return "";var sel=f.bturnos||[];
+   return '<div class="fld"><span class="lbl">O que bloquear</span><div class="chips"><button class="chip'+(sel.length?"":" on")+'" data-a="bTurno" data-v="">Dia inteiro</button>'+ab.turnos.map(function(t){return '<button class="chip'+(sel.indexOf(t.id)>=0?" on":"")+'" data-a="bTurno" data-v="'+esc(t.id)+'">'+esc(turnoLabel(ab,t.id))+'</button>'}).join("")+'</div><span class="hint">Escolha um ou mais turnos, ou o dia inteiro. Os outros turnos continuam disponíveis para reserva.</span></div>'})()+
   '<div class="g2"><div class="fld"><label class="lbl" for="b-de">De</label><input id="b-de" class="in" type="date" data-bind="f.de" data-rerender="1" value="'+esc(f.de)+'"></div><div class="fld"><label class="lbl" for="b-ate">Até</label><input id="b-ate" class="in" type="date" data-bind="f.ate" data-rerender="1" value="'+esc(f.ate)+'"></div></div>'+
   '<div class="fld"><label class="lbl" for="b-mot">Motivo (os moradores veem)</label><input id="b-mot" class="in" data-bind="f.motivo" value="'+esc(f.motivo)+'"></div>'+
   (S.ui.errForm?'<div class="errmsg" role="alert">'+esc(S.ui.errForm)+'</div>':'')+'<button class="btn block" data-a="sSalvaBloq">Salvar bloqueio</button></section>';
  }else h+='<button class="btn block" data-a="sNovoBloq">+ Novo bloqueio</button>';
  if(S.ui.okBloq)h+='<div class="okmsg" role="status">'+esc(S.ui.okBloq)+'</div>';
- h+=S.bloqueios.length?S.bloqueios.map(function(b){return '<section class="card tight"><div class="row between"><b>'+fmtD(b.de)+(b.ate!==b.de?" a "+fmtD(b.ate):"")+'</b><button class="btn ghost sm" style="color:var(--bad)" data-a="sRemBloq" data-v="'+b.id+'">Remover</button></div><div class="small">'+(b.area==="todas"?"Todos os espaços":esc((area(b.area)||{nome:"Espaço removido"}).nome))+' · '+esc(b.motivo)+'</div><div class="xs muted">Criado por '+esc(b.autor)+'</div></section>'}).join(""):empty("Nenhum bloqueio ativo.");
+ h+=S.bloqueios.length?S.bloqueios.map(function(b){return '<section class="card tight"><div class="row between"><b>'+fmtD(b.de)+(b.ate!==b.de?" a "+fmtD(b.ate):"")+'</b><button class="btn ghost sm" style="color:var(--bad)" data-a="sRemBloq" data-v="'+b.id+'">Remover</button></div><div class="small">'+(b.area==="todas"?"Todos os espaços":esc((area(b.area)||{nome:"Espaço removido"}).nome))+((b.turnos||[]).length?' · <b>Turno: '+esc(nomesTurnos(area(b.area),b.turnos))+'</b>':'')+' · '+esc(b.motivo)+'</div><div class="xs muted">Criado por '+esc(b.autor)+'</div></section>'}).join(""):empty("Nenhum bloqueio ativo.");
  return h+'</main>';
 }
 function sRelatorios(){
@@ -1296,6 +1307,7 @@ var A={
  nrMes:function(v){var N=S.nr,m=N.m+ +v,y=N.y;if(m<0){m=11;y--}if(m>11){m=0;y++}var k=y*12+m,h=mesAtual(),k0=S.real?h.y*12+h.m:2026*12+9,mx=S.real?k0+Math.ceil(((area(N.area)||{}).antMax||90)/30):2027*12+0;if(k<k0||k>mx)return;N.m=m;N.y=y},
  nrDia:function(v){var a=area(S.nr.area);if(diaStatus(a,v)!=="livre")return;S.nr.data=v;S.nr.turno=null},
  nrTurno:function(v){S.nr.turno=v},
+ recarregar:function(){if(!S.real)return;if(S.role==="sindico"){carregarAdmin();carregarPedidos();carregarEncAdm()}if(S.role==="portaria")carregarPortaria();carregarReservas();render()},
  nrAceite:function(v,el){S.nr.aceite=el.checked},
  nrConfirmar:function(){var N=S.nr,a=area(N.area),u=me(),turno=a.modo==="integral"?"integral":N.turno;
   if(!N.data||!turno||!N.aceite)return;
@@ -1445,10 +1457,11 @@ var A={
    chamarServidor("areas.salvar",dados,{grava:true}).then(function(d){var x=area(d.id);if(x)Object.assign(x,d);else S.areas.push(d);S.ui.okArea=d.nome+" salvo."+(dados.termoPdf?" Termo de uso anexado (versão de "+d.termoVersao+").":"");S.ui.form=null;S.f={};render()},function(e){S.ui.errForm=e.mensagem;render()}).finally(function(){S.ui.ocupado=false});return}var f=S.f,o={nome:f.nome.trim(),cap:parseInt(f.cap,10)||0,preco:parseFloat(String(f.preco).replace(",","."))||0,modo:f.modo,abre:f.abre,fecha:f.fecha,turnos:f.turnos.map(function(t,i){return {id:t.id||"t"+(i+1)+uid(),nome:t.nome,ini:t.ini,fim:t.fim}}),manual:f.manual,antMin:parseInt(f.antMin,10)||0,canc:parseInt(f.canc,10)||0,termos:f.termos,ativo:f.ativo};
   if(S.ui.form==="novaArea"){o.id="a"+uid();o.antMax=90;S.areas.push(o);audit("Criou área comum",o.nome)}else{Object.assign(area(S.ui.form.slice(5)),o);audit("Alterou área comum",o.nome+" · "+(o.modo==="integral"?"período integral":"por turnos"))}
   S.ui.okArea=o.nome+" salvo.";S.ui.form=null;S.f={}},
- sNovoBloq:function(){S.ui.form="bloq";S.ui.okBloq="";S.f=S.real?{area:"todas",de:TODAY,ate:TODAY,motivo:""}:{area:"todas",de:"2026-12-24",ate:"2026-12-25",motivo:"Confraternização de fim de ano do condomínio"}},
+ bTurno:function(v){var l=S.f.bturnos||[];if(!v)l=[];else if(l.indexOf(v)>=0)l=l.filter(function(x){return x!==v});else l=l.concat([v]);S.f.bturnos=l},
+ sNovoBloq:function(){S.ui.form="bloq";S.ui.okBloq="";S.f=S.real?{area:"todas",de:TODAY,ate:TODAY,motivo:"",bturnos:[]}:{area:"todas",de:"2026-12-24",ate:"2026-12-25",motivo:"Confraternização de fim de ano do condomínio"}},
  sSalvaBloq:function(){var f=S.f;if(!f.de||!f.ate||f.ate<f.de){S.ui.errForm="A data final precisa ser igual ou depois da inicial.";return}if(!f.motivo.trim()){S.ui.errForm="Informe o motivo do bloqueio.";return}S.ui.errForm="";
-  if(S.real){if(S.ui.ocupado)return;S.ui.ocupado=true;chamarServidor("bloqueios.salvar",{area:f.area,de:f.de,ate:f.ate,motivo:f.motivo.trim()},{grava:true}).then(function(d){S.bloqueios.push(d.bloqueio);var n=d.afetadas.length;
-    S.ui.okBloq="Bloqueio criado. As datas já aparecem bloqueadas para os moradores."+(n?" Atenção: já existe"+(n>1?"m "+n+" reservas":" 1 reserva")+" nesse período (apto "+d.afetadas.map(function(x){return x.apto+" em "+fmtD(x.data)}).join(", ")+"). Elas continuam valendo: fale com o morador ou cancele em Reservas.":"");S.ui.form=null;S.f={};render()},
+  if(S.real){if(S.ui.ocupado)return;S.ui.ocupado=true;var ab=f.area&&f.area!=="todas"?area(f.area):null,bt=ab&&ab.modo==="turnos"?(f.bturnos||[]):[];chamarServidor("bloqueios.salvar",{area:f.area,de:f.de,ate:f.ate,motivo:f.motivo.trim(),turnos:bt},{grava:true}).then(function(d){S.bloqueios.push(d.bloqueio);var n=d.afetadas.length;
+    S.ui.okBloq="Bloqueio criado. "+((d.bloqueio.turnos||[]).length?"O turno já aparece bloqueado para os moradores; os outros turnos continuam disponíveis.":"As datas já aparecem bloqueadas para os moradores.")+(n?" Atenção: já existe"+(n>1?"m "+n+" reservas":" 1 reserva")+" nesse período (apto "+d.afetadas.map(function(x){return x.apto+" em "+fmtD(x.data)}).join(", ")+"). Elas continuam valendo: fale com o morador ou cancele em Reservas.":"");S.ui.form=null;S.f={};render()},
     function(e){S.ui.errForm=e.mensagem;render()}).finally(function(){S.ui.ocupado=false});return}
   S.bloqueios.push({id:uid(),area:f.area,de:f.de,ate:f.ate,motivo:f.motivo.trim(),autor:me().nome});audit("Criou bloqueio",(f.area==="todas"?"Todos os espaços":area(f.area).nome)+" · "+fmtD(f.de)+" a "+fmtD(f.ate));S.ui.okBloq="Bloqueio criado. As datas já aparecem bloqueadas para os moradores.";S.ui.form=null;S.f={}},
  sRemBloq:function(v){if(S.real){chamarServidor("bloqueios.remover",{id:v},{grava:true}).then(function(){S.bloqueios=S.bloqueios.filter(function(x){return String(x.id)!==String(v)});toast("Bloqueio removido.")},function(e){toast(e.mensagem);render()});return}var b=S.bloqueios.filter(function(x){return x.id===+v})[0];S.bloqueios=S.bloqueios.filter(function(x){return x.id!==+v});audit("Removeu bloqueio",b.motivo);toast("Bloqueio removido.")},
@@ -1494,7 +1507,9 @@ function entrarComCodigo(){var L=S.login,cod=soDig(L.codigo);L.err="";
  chamarServidor("acesso.entrar",{email:L.email,codigo:cod,aparelho:descricaoAparelho()},{grava:true}).then(function(d){salvarToken(d.token);entrarReal(d);toast("Olá, "+String(d.nome||"").split(" ")[0]+"! Você entrou no app.")},function(e){L.err=e.mensagem;if(e.codigo==="CODIGO_BLOQUEADO")L.codigo="";render()})}
 function entrarReal(eu){
  var perf=eu.perfil,role=perf==="morador"?"morador":perf==="portaria"?"portaria":"sindico";
- S.real=eu;S.usuarios=S.usuarios.filter(function(u){return u.id!=="real"});
+ // Os dados de exemplo do protótipo (usados só no "Só para conhecer" do TESTE) saem da memória:
+ // daqui em diante tudo vem do servidor, e as telas mostram "Carregando…" até a resposta chegar.
+ S.real=eu;S.usuarios=[];S.areas=[];S.extras=[];S.carga={adm:false,port:false,res:false};
  if(role!=="portaria"){S.usuarios.push({id:"real",apto:eu.unidade||"",nome:eu.nome,email:eu.email||"",tel:"",wa:false,perfil:perf,vinculo:eu.vinculo||"",sit:"Ativo",avEmail:true});S.me[role]="real"}
  S.role=role;S.ui={};S.porteiro=null;S.lf=null;S.nr=null;S.cad=null;S.login={step:"email",email:"",codigo:"",err:""};
  go(role==="morador"?"inicio":role==="portaria"?"enc":"painel");
@@ -1517,7 +1532,7 @@ var CFGMAP=[["nome","nomeCondominio"],["andares","andares"],["porLado","aptosPor
 function aplicarConfig(c){if(!c)return;CFGMAP.forEach(function(m){if(c[m[1]]!==undefined)S.cfg[m[0]]=c[m[1]]});S.cfg.porAndar=S.cfg.porLado*2}
 function usuarioDoServidor(u){return {id:u.id,apto:u.unidade||"",nome:u.nome,email:u.email||"",tel:u.telefone||"",wa:!!u.whatsapp,avEmail:u.avisoEmailEncomenda!==false,perfil:u.perfil,vinculo:u.vinculo||"",sit:u.situacao,turno:u.turno||"",mandato:u.mandatoAte||"",temPin:!!u.temPin}}
 function carregarAdmin(){return chamarServidor("admin.carregar",{},{silencioso:true}).then(function(d){
- S.usuarios=d.usuarios.map(usuarioDoServidor);
+ S.usuarios=d.usuarios.map(usuarioDoServidor);if(S.carga)S.carga.adm=true;
  S.extras=d.extras.map(function(x){return {num:x.unidade,nome:x.nome,tipo:x.tipo,local:x.local||"",encomendas:!!x.recebeEncomendas,reservas:!!x.podeReservar,ativo:!!x.ativa}});
  aplicarConfig(d.config);if(S.real&&S.real.usuarioId)S.me.sindico=S.real.usuarioId;render()},function(e){toast(e.mensagem);render()})}
 function carregarPerfil(){return chamarServidor("perfil.carregar",{},{silencioso:true}).then(aplicarPerfil,function(){})}
@@ -1533,7 +1548,7 @@ function encDoServidor(e){return {id:e.id,lote:e.lote||null,apto:e.unidade,tipo:
  editEm:e.editadoEm||"",editPor:e.editadoPor||"",excEm:e.excluidaEm||"",excPor:e.excluidaPor||"",excMotivo:e.motivoExclusao||""}}
 function mesclarEnc(lista){lista.forEach(function(x){var i=-1;S.encomendas.forEach(function(y,k){if(String(y.id)===String(x.id))i=k});if(i>=0){x.foto=S.encomendas[i].foto||x.foto;S.encomendas[i]=x}else S.encomendas.unshift(x)})}
 function carregarPortaria(){return chamarServidor("portaria.carregar",{},{silencioso:true}).then(function(d){
- S.usuarios=d.porteiros.map(function(p){return {id:p.id,nome:p.nome,turno:p.turno||"",perfil:"porteiro",sit:"Ativo",temPin:!!p.temPin,apto:"",email:""}}).concat(d.moradores.map(function(m){return {id:m.id,nome:m.nome,apto:m.unidade,perfil:"morador",vinculo:m.vinculo||"",sit:m.situacao,wa:!!m.whatsapp,tel:m.telefone||"",email:""}}));
+ if(S.carga)S.carga.port=true;S.usuarios=d.porteiros.map(function(p){return {id:p.id,nome:p.nome,turno:p.turno||"",perfil:"porteiro",sit:"Ativo",temPin:!!p.temPin,apto:"",email:""}}).concat(d.moradores.map(function(m){return {id:m.id,nome:m.nome,apto:m.unidade,perfil:"morador",vinculo:m.vinculo||"",sit:m.situacao,wa:!!m.whatsapp,tel:m.telefone||"",email:""}}));
  S.extras=d.extras.map(function(x){return {num:x.unidade,nome:x.nome,tipo:"residencial",local:"",encomendas:true,reservas:false,ativo:true}});
  S.encomendas=d.encomendas.map(encDoServidor);
  S.cfg.exigirPin=!!d.exigirPin;S.cfg.portRelogin=d.reloginMin||S.cfg.portRelogin;S.cfg.waAtivo=!!d.waAtivo;if(d.waModelo)S.cfg.waModelo=d.waModelo;S.cfg.lembrete=d.lembreteDias||S.cfg.lembrete;
@@ -1552,7 +1567,7 @@ function locDoServidor(l){return {id:String(l.id),apto:l.apto,por:l.por||"",cria
 function carregarLocacoes(){return chamarServidor("locacao.carregar",{},{silencioso:true}).then(function(d){S.locacoes=d.locacoes.map(locDoServidor);if(S.ui.locId&&!loc(S.ui.locId))S.ui.locId=null;render()},function(e){if(S.role==="sindico")toast(e.mensagem);render()})}
 function resDoServidor(r){return {id:String(r.id),por:r.por||r.nome||"",area:String(r.area),data:r.data,turno:String(r.turno),apto:r.apto||"",nome:r.nome||"",status:r.status,isenta:!!r.isenta,taxa:r.taxa,origem:r.origem||"",criado:r.criado||"",motivo:r.motivo||"",convidados:r.convidados||[],ocupado:!!r.ocupado}}
 function carregarReservas(){return chamarServidor("reservas.carregar",{},{silencioso:true}).then(function(d){
- S.areas=d.areas.map(function(a){a.turnos=(a.turnos||[]).map(function(t){t.id=String(t.id);return t});return a});S.bloqueios=d.bloqueios;S.reservas=d.reservas.map(resDoServidor);
+ if(S.carga)S.carga.res=true;S.areas=d.areas.map(function(a){a.turnos=(a.turnos||[]).map(function(t){t.id=String(t.id);return t});return a});S.bloqueios=d.bloqueios;S.reservas=d.reservas.map(resDoServidor);
  if(S.nr&&!area(S.nr.area))S.nr=null;render()},function(e){if(S.role!=="morador")toast(e.mensagem);render()})}
 function salvarConvidados(r,lista,msg,limpar){if(S.ui.ocupado)return;S.ui.ocupado=true;
  chamarServidor("convidados.salvar",{reservaId:r.id,convidados:lista},{grava:true}).then(function(d){r.convidados=d.convidados;if(limpar)S.f={};toast(msg)},function(e){toast(e.mensagem);render()}).finally(function(){S.ui.ocupado=false})}

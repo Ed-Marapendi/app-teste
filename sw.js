@@ -9,7 +9,7 @@
  * - Versão nova: fica "esperando" até a pessoa tocar em "Nova versão disponível".
  * Ao publicar uma versão nova das telas, troque o número em VERSAO (o mesmo de config.js).
  */
-var VERSAO = '0.12.0';
+var VERSAO = '0.13.0';
 var CACHE = 'marapendi-telas-' + VERSAO;
 var ESSENCIAIS = ['./', 'index.html', 'app.css?v=' + VERSAO, 'config.js?v=' + VERSAO, 'servidor.js?v=' + VERSAO, 'app.js?v=' + VERSAO, 'pwa.js?v=' + VERSAO,
   'logo.jpg', 'manifest.webmanifest', 'icone-192.png', 'icone-512.png', 'icone-maskable-512.png', 'apple-touch-icon.png', 'favicon-32.png'];
