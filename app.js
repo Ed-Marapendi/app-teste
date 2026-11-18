@@ -610,19 +610,19 @@ function mLocNova(){
  var h=topbar("Nova solicitação","Locação / temporada · apto "+me().apto,{back:"locListaBtn"})+'<main class="wrap page">';
  h+='<section class="card"><h2 class="h2">1. Período da autorização</h2><div class="g2"><div class="fld"><label class="lbl" for="lf-de">Entrada</label><input id="lf-de" class="in" type="date" min="'+min+'" data-bind="lf.de" data-rerender="1" value="'+esc(F.de)+'"></div><div class="fld"><label class="lbl" for="lf-ate">Saída</label><input id="lf-ate" class="in" type="date" min="'+(F.de||min)+'" data-bind="lf.ate" data-rerender="1" value="'+esc(F.ate)+'"></div></div>'+
  (F.de&&F.ate&&F.ate>F.de?'<span class="pill p-sea">'+noites(F.de,F.ate)+(noites(F.de,F.ate)===1?" noite":" noites")+'</span>':'<span class="hint">A entrada precisa ser a partir de '+fmtD(min)+'.</span>')+'</section>';
- h+='<section class="card"><div class="row between"><h2 class="h2">2. Hóspedes</h2><span class="pill p-sea">'+F.pessoas.length+'</span></div><p class="small muted">Todas as pessoas que vão ficar no apartamento, inclusive crianças. Anexe uma foto do documento de cada uma (RG ou CNH, frente e verso numa foto só).</p>';
+ h+='<section class="card"><div class="row between"><h2 class="h2">2. Hóspedes</h2><span class="pill p-sea">'+F.pessoas.length+'</span></div><p class="small muted">Todas as pessoas que vão ficar no apartamento, inclusive crianças. Anexe uma foto do documento (opcional).</p>';
  F.pessoas.forEach(function(p,i){var b="lf.pessoas."+i,id="lf-p"+i;
   h+='<div class="card tight" style="background:var(--bg)"><div class="row between"><b>Pessoa '+(i+1)+'</b>'+(F.pessoas.length>1?'<button class="btn ghost sm" style="color:var(--bad)" data-a="lfRemP" data-v="'+i+'">Remover</button>':'')+'</div>'+
   '<div class="fld"><label class="lbl" for="'+id+'-nome">Nome completo</label><input id="'+id+'-nome" class="in" autocomplete="off" data-bind="'+b+'.nome" value="'+esc(p.nome)+'"></div>'+
   '<div class="g2"><div class="fld"><label class="lbl" for="'+id+'-rg">RG</label><input id="'+id+'-rg" class="in" autocomplete="off" data-bind="'+b+'.rg" value="'+esc(p.rg)+'"></div><div class="fld"><label class="lbl" for="'+id+'-cpf">CPF</label><input id="'+id+'-cpf" class="in" inputmode="numeric" autocomplete="off" data-bind="'+b+'.cpf" value="'+esc(p.cpf)+'" placeholder="000.000.000-00"></div></div>'+
-  docField(b+".doc","Documento com foto",id+"-doc")+'</div>';
+  docField(b+".doc","Documento com foto (opcional)",id+"-doc")+'</div>';
  });
  h+='<button class="btn out sm" data-a="lfAddP">+ Adicionar pessoa</button>'+(!S.real||CFG.ambiente==="TESTE"?'<p class="hint">Para testar, use um CPF válido, por exemplo 529.982.247-25. Use só dados fictícios no ambiente de teste.</p>':'')+'</section>';
  h+='<section class="card"><h2 class="h2">3. Veículo</h2><button class="switchrow" data-a="lfSemCarro" aria-pressed="'+F.semCarro+'" style="border:0"><span><b style="display:block">Os hóspedes não vão trazer carro</b><span class="small muted">Desligue para informar placa e documento</span></span><span class="toggle'+(F.semCarro?" on":"")+'"><i></i></span></button>';
  if(!F.semCarro){F.veiculos.forEach(function(v,i){var b="lf.veiculos."+i,id="lf-v"+i;
   h+='<div class="card tight" style="background:var(--bg)"><div class="row between"><b>Veículo '+(i+1)+'</b>'+(F.veiculos.length>1?'<button class="btn ghost sm" style="color:var(--bad)" data-a="lfRemV" data-v="'+i+'">Remover</button>':'')+'</div>'+
   '<div class="g2"><div class="fld"><label class="lbl" for="'+id+'-placa">Placa</label><input id="'+id+'-placa" class="in" autocomplete="off" style="text-transform:uppercase" data-bind="'+b+'.placa" value="'+esc(v.placa)+'" placeholder="ABC1D23"></div><div class="fld"><label class="lbl" for="'+id+'-mod">Modelo e cor</label><input id="'+id+'-mod" class="in" data-bind="'+b+'.modelo" value="'+esc(v.modelo)+'" placeholder="Onix prata"></div></div>'+
-  docField(b+".doc","Documento do carro (CRLV)",id+"-doc")+'</div>'});
+  docField(b+".doc","Documento do carro (CRLV) (opcional)",id+"-doc")+'</div>'});
   h+='<button class="btn out sm" data-a="lfAddV">+ Adicionar veículo</button>';}
  h+='</section>';
  h+='<section class="card"><h2 class="h2">4. Informações adicionais</h2>'+
@@ -660,7 +660,7 @@ function sLocAdm(){
  var l=loc(S.ui.locId),st=locSt(l);
  var h='<main class="wrap page"><button class="btn ghost sm" style="align-self:flex-start;color:var(--sea);padding-left:0" data-a="locVoltar">'+ic("back",18)+'Todas as solicitações</button>'+
  '<section class="card"><div class="row between wrapr"><b style="font-size:20px;color:var(--sea-strong)">Apto '+l.apto+'</b>'+locPill(l)+'</div><div class="small">'+esc(periodo(l))+'</div><div class="xs muted">Pedido por '+esc(l.por)+' em '+esc(l.criado)+'</div></section>';
- if(st==="pendente")h+='<div class="note">'+ic("shield",20)+'<span><b>Antes de aprovar, confira:</b> nomes iguais aos documentos, documentos legíveis, CPF de cada pessoa, placa igual ao CRLV e período de acordo com o regimento.</span></div>';
+ if(st==="pendente")h+='<div class="note">'+ic("shield",20)+'<span><b>Antes de aprovar, confira:</b> nome, RG e CPF de cada pessoa; documentos legíveis e placa igual ao CRLV, quando anexados e período de acordo com o regimento.</span></div>';
  else h+=locStatusBox(l);
  h+=locDetalhe(l,true);
  if(st==="pendente")h+='<div class="g2"><button class="btn okb" data-a="locAprovar" data-v="'+l.id+'">Aprovar</button><button class="btn badb" data-a="locRecusar" data-v="'+l.id+'">Recusar</button></div>';
@@ -1196,8 +1196,8 @@ var A={
    S.sheet={t:"docLoc",url:url,tipo:r.tipo,nome:(d&&d.nome)||"Documento"};render()},function(e){toast(e.mensagem)})},
  locEnviar:function(){var F=S.lf,u=me(),min=addDays(TODAY,S.cfg.locAntMin),e="";
   if(!F.de||!F.ate)e="Informe as datas de entrada e saída.";else if(F.de<min)e="A entrada precisa ser a partir de "+fmtD(min)+" ("+S.cfg.locAntMin+" dias de antecedência).";else if(F.ate<=F.de)e="A saída precisa ser depois da entrada.";
-  if(!e)F.pessoas.some(function(p,i){var n="Pessoa "+(i+1)+": ";if(p.nome.trim().split(/\s+/).length<2)e=n+"informe o nome completo.";else if(!p.rg.trim())e=n+"informe o RG.";else if(!cpfOk(p.cpf))e=n+"CPF inválido. Confira os números.";else if(!p.doc)e=n+"anexe a foto do documento.";return !!e});
-  if(!e&&!F.semCarro)F.veiculos.some(function(v,i){var n="Veículo "+(i+1)+": ";if(!/^[A-Za-z]{3}-?[0-9][A-Za-z0-9][0-9]{2}$/.test(v.placa.trim()))e=n+"placa inválida (ex.: ABC1D23).";else if(!v.doc)e=n+"anexe o documento do carro (CRLV).";return !!e});
+  if(!e)F.pessoas.some(function(p,i){var n="Pessoa "+(i+1)+": ";if(p.nome.trim().split(/\s+/).length<2)e=n+"informe o nome completo.";else if(!p.rg.trim())e=n+"informe o RG.";else if(!cpfOk(p.cpf))e=n+"CPF inválido. Confira os números.";return !!e});
+  if(!e&&!F.semCarro)F.veiculos.some(function(v,i){var n="Veículo "+(i+1)+": ";if(!/^[A-Za-z]{3}-?[0-9][A-Za-z0-9][0-9]{2}$/.test(v.placa.trim()))e=n+"placa inválida (ex.: ABC1D23).";return !!e});
   if(!e&&!F.aceite)e="Marque a declaração de responsabilidade para enviar.";
   if(e){S.ui.errForm=e;return}
   S.ui.errForm="";
