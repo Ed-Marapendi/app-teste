@@ -69,7 +69,7 @@ function seed(){
  return {
   role:null, screen:null, login:{step:"email",email:"",codigo:"",err:""},
   me:{morador:1, sindico:23}, porteiro:null, portLast:0,
-  cfg:{turnosPort:"07h às 19h\n19h às 07h",emailEnc:true,emailLem:true,emailRes:true,emailLoc:true,bkpFreq:"diaria",ctTel:"",ctEmail:"",ctHor:"",ctSind:"",nome:"Ed. Marapendi",andares:18,porLado:6,porAndar:12,cota:100,lembrete:3,codigoMin:10,codigoTent:5,sesMorador:30,sesPortaria:90,sesAdm:7,fotoDias:90,bkpDias:30,cadDia:30,cadPessoas:5,exigirPin:false,locSoProp:false,inclSoTitular:false,emailReserva:30,portariaEmail:"portaria.edmarapendi@gmail.com",portRelogin:15,locAntMin:2,locDocsDias:30,waAtivo:true,waNumero:"(21) 98888-0000",waModelo:"Olá, {nome}! Aqui é a portaria do Ed. Marapendi.\nChegou para o apto {apto}: {tipo}{remetente}, às {hora}.\nPode retirar na portaria. Código de conferência: {codigo}."},
+  cfg:{turnosPort:"07h às 19h\n19h às 07h",emailEnc:true,emailLem:true,emailRes:true,emailLoc:true,bkpFreq:"diaria",ctTel:"",ctEmail:"",ctHor:"",ctSind:"",nome:"Ed. Marapendi",andares:18,porLado:6,porAndar:12,cota:100,lembrete:3,codigoMin:10,codigoTent:5,sesMorador:30,sesPortaria:90,sesAdm:7,fotoDias:90,assRet:false,assDias:365,bkpDias:30,cadDia:30,cadPessoas:5,exigirPin:false,locSoProp:false,inclSoTitular:false,emailReserva:30,portariaEmail:"portaria.edmarapendi@gmail.com",portRelogin:15,locAntMin:2,locDocsDias:30,waAtivo:true,waNumero:"(21) 98888-0000",waModelo:"Olá, {nome}! Aqui é a portaria do Ed. Marapendi.\nChegou para o apto {apto}: {tipo}{remetente}, às {hora}.\nPode retirar na portaria. Código de conferência: {codigo}."},
   areas:[
    {id:"churras",nome:"Churrasqueira",cap:20,preco:80,manual:false,modo:"integral",abre:"10:00",fecha:"23:00",turnos:[{id:"t1",nome:"Almoço",ini:"11:00",fim:"16:00"},{id:"t2",nome:"Noite",ini:"18:00",fim:"23:00"}],antMin:2,antMax:90,canc:48,termos:"Respeitar o silêncio após as 22h. Devolver o espaço limpo. Danos são cobrados da unidade.",ativo:true},
    {id:"salao",nome:"Salão de festas",cap:60,preco:150,manual:false,modo:"integral",abre:"10:00",fecha:"23:00",turnos:[],antMin:2,antMax:90,canc:48,termos:"Respeitar o silêncio após as 22h. Som com volume moderado. Devolver o espaço limpo. Danos são cobrados da unidade.",ativo:true}
@@ -208,6 +208,7 @@ function bloqueiosTurno(areaId,data){return S.bloqueios.filter(function(b){retur
 function nomesTurnos(a,ids){return (a&&a.turnos||[]).filter(function(t){return (ids||[]).indexOf(String(t.id))>=0}).map(function(t){return t.nome}).join(", ")}
 function turnoLabel(a,t){if(t==="integral")return "Período integral · "+a.abre.replace(":00","h")+"–"+a.fecha.replace(":00","h");var x=a.turnos.filter(function(z){return z.id===t})[0];return x?x.nome+" · "+x.ini.replace(":00","h")+"–"+x.fim.replace(":00","h"):"—"}
 function conflito(areaId,data,turno,ignore){
+ var ar=area(areaId);if(ar&&terminou(ar,data,turno))return {tipo:"fim",msg:turno==="integral"?"O horário de uso deste espaço neste dia já terminou (fecha às "+ar.fecha+").":"Este turno já terminou. Escolha outro turno ou outra data."};
  var b=bloqueio(areaId,data,turno); if(b)return {tipo:"bloq",msg:((b.turnos||[]).length?"Turno bloqueado pela administração: ":"Data bloqueada pela administração: ")+b.motivo+"."};
  var r=S.reservas.filter(function(r){return r.id!==ignore&&r.area===areaId&&r.data===data&&ativa(r)&&(turno==="integral"||r.turno==="integral"||r.turno===turno)})[0];
  if(r)return {tipo:"ocup",msg:area(areaId).nome+" já reservada nesta data"+(r.apto?" (apto "+r.apto+")":"")+"."};
@@ -216,17 +217,22 @@ function conflito(areaId,data,turno,ignore){
 function diaStatus(a,data,turnoSel,adm){
  var min=adm?TODAY:addDays(TODAY,a.antMin), max=adm?addDays(TODAY,450):addDays(TODAY,a.antMax);
  if(data<min||data>max)return "ind";
+ if(a.modo==="integral"?terminou(a,data,"integral"):(a.turnos.length&&a.turnos.every(function(t){return terminou(a,data,t.id)})))return "ind";
  if(bloqueio(a.id,data))return "bloq";
  if(a.modo==="integral")return conflito(a.id,data,"integral")?"ocup":"livre";
  var livres=a.turnos.filter(function(t){return !conflito(a.id,data,t.id)});
  if(livres.length)return "livre";
  return a.turnos.length&&a.turnos.every(function(t){return bloqueio(a.id,data,t.id)})?"bloq":"ocup";
 }
-function statusPill(st){var m={confirmada:["Confirmada","p-ok"],aguardando:["Aguardando aprovação","p-warn"],cancelada:["Cancelada","p-off"],recusada:["Recusada","p-bad"]}[st];return '<span class="pill '+m[1]+'">'+m[0]+'</span>'}
+function statusPill(st){var m={confirmada:["Confirmada","p-ok"],aguardando:["Aguardando aprovação","p-warn"],cancelada:["Cancelada","p-off"],recusada:["Recusada","p-bad"],vencida:["Pedido vencido","p-off"]}[st]||[String(st||"—"),"p-off"];return '<span class="pill '+m[1]+'">'+m[0]+'</span>'}
 function avisoPill(e){var m={email:["E-mail enviado","p-ok"],cota:["Só no app · cota de e-mail","p-warn"],invalido:["Só no app · e-mail inválido","p-bad"],pausado:["Só no app · e-mail pausado","p-sea"]}[e.aviso]||["Aviso no app","p-sea"];return '<span class="pill '+m[1]+'">'+m[0]+'</span>'}
 function resPorId(id){return S.reservas.filter(function(x){return String(x.id)===String(id)})[0]}
 function inicioRes(r){var a=area(r.area),h=r.turno==="integral"?a.abre:((a.turnos.filter(function(t){return String(t.id)===String(r.turno)})[0]||{}).ini||"00:00");var p=r.data.split("-"),q=String(h||"00:00").split(":");return new Date(+p[0],+p[1]-1,+p[2],+q[0]||0,+q[1]||0)}
-function podeCancelar(r){var a=area(r.area);var lim=new Date(inicioRes(r).getTime()-a.canc*3600000);return (S.real?new Date():new Date(2026,9,21,9,0))<lim}
+function agoraTela(){return S.real?new Date():new Date(2026,9,21,9,0)}
+function podeCancelar(r){var a=area(r.area);var lim=new Date(inicioRes(r).getTime()-a.canc*3600000);return agoraTela()<lim}
+function fimRes(a,data,turno){var ini,fim;if(turno==="integral"){ini=a.abre||"10:00";fim=a.fecha||"22:00"}else{var t=(a.turnos||[]).filter(function(z){return String(z.id)===String(turno)})[0]||{};ini=t.ini||"00:00";fim=t.fim||"23:59"}
+ var p=data.split("-"),q=String(fim).split(":"),d=new Date(+p[0],+p[1]-1,+p[2],+q[0]||0,+q[1]||0);if(fim<=ini)d.setDate(d.getDate()+1);return d}
+function terminou(a,data,turno){return !!(a&&data&&turno)&&agoraTela()>=fimRes(a,data,turno)}
 var REGRAS_PADRAO="Ao reservar, você se compromete a respeitar as regras do condomínio.";
 function termoUrl(a){var c=(S.termos||{})[a.id];return c&&c.v===a.termoVersao&&c.url?c.url:""}
 function carregarTermo(a,abrir){S.termos=S.termos||{};var c=S.termos[a.id];if(c&&c.v===a.termoVersao&&(c.carregando||c.url)){if(abrir&&c.url)S.sheet={t:"termoPdf",id:a.id};return}
@@ -445,7 +451,7 @@ function mEncomendas(){
   });
  }else{
   if(!ret.length)h+=empty("Nenhuma retirada registrada.");
-  else h+='<div class="card tight"><div class="list">'+ret.map(function(e){return '<div class="li"><span class="tile" style="width:40px;height:40px;background:var(--ok-soft);color:var(--ok)">'+ic("check",20)+'</span><span class="grow"><b>'+esc(e.tipo)+' · '+esc(e.rem)+'</b><span class="xs muted" style="display:block">Retirada '+esc(e.em)+' por '+esc(e.por)+'</span></span></div>'}).join("")+'</div></div>';
+  else h+='<div class="card tight"><div class="list">'+ret.map(function(e){return '<div class="li"><span class="tile" style="width:40px;height:40px;background:var(--ok-soft);color:var(--ok)">'+ic("check",20)+'</span><span class="grow"><b>'+esc(e.tipo)+' · '+esc(e.rem)+'</b><span class="xs muted" style="display:block">Retirada '+esc(e.em)+' por '+esc(e.por)+'</span></span>'+(e.temAss?'<button class="btn ghost sm" style="color:var(--sea)" data-a="verAss" data-v="'+e.id+'">Assinatura</button>':'')+'</div>'}).join("")+'</div></div>';
  }
  return h+'</main>';
 }
@@ -492,10 +498,10 @@ function mReservas(){
   return '<button class="optcard'+(on?" on":"")+'" data-a="nrArea" data-v="'+x.id+'"><b style="font-size:16px">'+esc(x.nome)+'</b><span class="small">Até '+x.cap+' pessoas</span><b>'+brl(x.preco)+'</b></button>'}).join("")+'</div></section>';
  h+='<section class="stack"><div class="row between"><div class="lbl">2. Escolha a data</div><div class="row" style="gap:0"><button class="iconbtn ghost" data-a="nrMes" data-v="-1" aria-label="Mês anterior">'+ic("back",20)+'</button><b style="min-width:120px;text-align:center;text-transform:capitalize">'+MES[N.m]+' '+N.y+'</b><button class="iconbtn ghost" data-a="nrMes" data-v="1" aria-label="Próximo mês">'+ic("next",20)+'</button></div></div>'+
  '<div class="card" style="padding:12px">'+calendario(a,N.y,N.m,N.data,"nrDia")+'<div class="legend"><span><i style="border:1.5px solid var(--line2)"></i>Livre</span><span><i style="background:var(--off-soft)"></i>Reservado</span><span><i style="background:var(--bad-soft)"></i>Bloqueado</span></div></div>'+
- '<p class="hint">Reservas com '+a.antMin+' a '+a.antMax+' dias de antecedência.</p></section>';
+ '<p class="hint">Reservas com '+a.antMin+' a '+a.antMax+' dias de antecedência.'+(+a.antMin===0?' Para hoje, até o fim do '+(a.modo==="integral"?'horário (fecha às '+a.fecha+').':'turno.'):'')+'</p></section>';
  h+='<section class="stack"><div class="lbl">3. Período</div>';
  if(a.modo==="integral")h+='<div class="chips"><span class="chip on" style="display:inline-flex;align-items:center">'+esc(turnoLabel(a,"integral"))+'</span></div><p class="hint">Este espaço é reservado por período integral.</p>';
- else h+='<div class="chips">'+a.turnos.map(function(t){var oc=N.data&&conflito(a.id,N.data,t.id);return '<button class="chip'+(N.turno===t.id?" on":"")+'" data-a="nrTurno" data-v="'+t.id+'" '+(oc?'disabled style="opacity:.45;text-decoration:line-through"':'')+'>'+esc(turnoLabel(a,t.id))+(oc&&oc.tipo==="bloq"?" · bloqueado":"")+'</button>'}).join("")+'</div>';
+ else h+='<div class="chips">'+a.turnos.map(function(t){var oc=N.data&&conflito(a.id,N.data,t.id);return '<button class="chip'+(N.turno===t.id?" on":"")+'" data-a="nrTurno" data-v="'+t.id+'" '+(oc?'disabled style="opacity:.45;text-decoration:line-through"':'')+'>'+esc(turnoLabel(a,t.id))+(oc&&oc.tipo==="bloq"?" · bloqueado":oc&&oc.tipo==="fim"?" · encerrado":"")+'</button>'}).join("")+'</div>';
  h+='</section>';
  var turno=a.modo==="integral"?"integral":N.turno, pronto=N.data&&turno&&N.aceite;
  h+='<section class="card"><h2 class="h2">Resumo</h2>'+
@@ -518,13 +524,13 @@ function mReservaDet(){
  '<div class="row between small"><span class="muted">Taxa</span><b>'+(r.isenta?"Isenta":brl(r.taxa!=null?r.taxa:a.preco))+'</b></div>'+
  '<div class="row between small"><span class="muted">Feita por</span><b>'+esc(r.por===me().nome?"Você":r.por||r.nome)+'</b></div>'+
  (r.origem?'<div class="xs" style="color:var(--sea-strong);font-weight:700">'+esc(r.origem)+'</div>':'')+
- (r.status==="aguardando"?'<p class="small muted">Você será avisado por e-mail e aqui no app quando a administração responder.</p>':'')+(r.motivo&&(r.status==="recusada"||r.status==="cancelada")?'<div class="small"><span class="muted">Motivo: </span>'+esc(r.motivo)+'</div>':'')+'</section>';
+ (r.status==="aguardando"?'<p class="small muted">Você será avisado por e-mail e aqui no app quando a administração responder.</p>':'')+(r.status==="vencida"?'<p class="small muted">O horário terminou antes da análise da administração. Se ainda precisar, fale com a administração.</p>':'')+(r.motivo&&(r.status==="recusada"||r.status==="cancelada")?'<div class="small"><span class="muted">Motivo: </span>'+esc(r.motivo)+'</div>':'')+'</section>';
  if(ativa(r)){
   h+='<section class="card"><div class="row between"><h2 class="h2">Lista de convidados</h2><span class="pill p-sea">'+r.convidados.length+' / '+a.cap+'</span></div>';
   h+=r.convidados.length?'<div class="list">'+r.convidados.map(function(c,i){return '<div class="li"><span class="av">'+esc(ini(c.n))+'</span><span class="grow"><b>'+esc(c.n)+'</b>'+(c.d?'<span class="xs muted" style="display:block">Doc. '+esc(c.d)+'</span>':'')+'</span><button class="iconbtn ghost" data-a="remConv" data-v="'+i+'" aria-label="Remover '+esc(c.n)+'">'+ic("x",20)+'</button></div>'}).join("")+'</div>':'<p class="small muted">Nenhum convidado ainda. A portaria só libera a entrada de quem estiver na lista.</p>';
   h+='<form class="stack" data-form="addConv"><div class="fld"><label class="lbl" for="cv-n">Nome do convidado</label><input id="cv-n" class="in" data-bind="f.cn" value="'+esc(f.cn||"")+'" placeholder="Nome e sobrenome"></div><div class="fld"><label class="lbl" for="cv-d">Documento (opcional)</label><input id="cv-d" class="in" data-bind="f.cd" value="'+esc(f.cd||"")+'" placeholder="RG ou CPF"></div><button class="btn out" type="submit">Adicionar à lista</button></form></section>';
   if(r.data>=TODAY){
-   h+=podeCancelar(r)?'<button class="btn badb block" data-a="pedirCancel" data-v="'+r.id+'">Cancelar reserva</button>':'<p class="small muted" style="text-align:center">O prazo para cancelar sem custo ('+a.canc+' h antes) já passou. Fale com a administração.</p>';
+   h+=podeCancelar(r)?'<button class="btn badb block" data-a="pedirCancel" data-v="'+r.id+'">Cancelar reserva</button>':'<div class="note" role="note">'+ic("info",20)+'<span><b>Fora do prazo de cancelamento.</b> Para cancelar, fale com a administração.<span class="xs muted" style="display:block">O cancelamento pelo app vai até '+a.canc+' h antes do início.</span></span></div>';
   }
  }
  return h+'</main>';
@@ -608,8 +614,13 @@ function mLocNova(){
  if(!podeLoc(me()))return topbar("Nova solicitação","Locação / temporada · apto "+me().apto,{back:"locListaBtn"})+'<main class="wrap page"><div class="note">'+ic("info",20)+'<span>Neste condomínio, só o proprietário da unidade pode pedir autorização de locação ou temporada. Fale com o proprietário do apto '+me().apto+' ou com a administração.</span></div></main>';
  var F=S.lf||(S.lf=novoLf()),min=addDays(TODAY,S.cfg.locAntMin);
  var h=topbar("Nova solicitação","Locação / temporada · apto "+me().apto,{back:"locListaBtn"})+'<main class="wrap page">';
- h+='<section class="card"><h2 class="h2">1. Período da autorização</h2><div class="g2"><div class="fld"><label class="lbl" for="lf-de">Entrada</label><input id="lf-de" class="in" type="date" min="'+min+'" data-bind="lf.de" data-rerender="1" value="'+esc(F.de)+'"></div><div class="fld"><label class="lbl" for="lf-ate">Saída</label><input id="lf-ate" class="in" type="date" min="'+(F.de||min)+'" data-bind="lf.ate" data-rerender="1" value="'+esc(F.ate)+'"></div></div>'+
- (F.de&&F.ate&&F.ate>F.de?'<span class="pill p-sea">'+noites(F.de,F.ate)+(noites(F.de,F.ate)===1?" noite":" noites")+'</span>':'<span class="hint">A entrada precisa ser a partir de '+fmtD(min)+'.</span>')+'</section>';
+ h+=locCampos(F,min,false)+locMoradorFim(F);
+ return h+'</main>';
+}
+/** Seções 1 a 4 do formulário de locação (morador e administração). adm: entrada pode ser hoje ou antes; saída a partir de hoje. */
+function locCampos(F,min,adm){
+ var h='<section class="card"><h2 class="h2">1. Período da autorização</h2><div class="g2"><div class="fld"><label class="lbl" for="lf-de">Entrada</label><input id="lf-de" class="in" type="date"'+(adm?'':' min="'+min+'"')+' data-bind="lf.de" data-rerender="1" value="'+esc(F.de)+'"></div><div class="fld"><label class="lbl" for="lf-ate">Saída</label><input id="lf-ate" class="in" type="date" min="'+(adm?(F.de&&F.de>TODAY?F.de:TODAY):(F.de||min))+'" data-bind="lf.ate" data-rerender="1" value="'+esc(F.ate)+'"></div></div>'+
+ (F.de&&F.ate&&F.ate>F.de?'<span class="pill p-sea">'+noites(F.de,F.ate)+(noites(F.de,F.ate)===1?" noite":" noites")+'</span>':'<span class="hint">'+(adm?'A administração pode incluir a qualquer momento, inclusive uma hospedagem que já começou. A saída precisa ser hoje ou depois.':'A entrada precisa ser a partir de '+fmtD(min)+'.')+'</span>')+'</section>';
  h+='<section class="card"><div class="row between"><h2 class="h2">2. Hóspedes</h2><span class="pill p-sea">'+F.pessoas.length+'</span></div><p class="small muted">Todas as pessoas que vão ficar no apartamento, inclusive crianças. Anexe uma foto do documento (opcional).</p>';
  F.pessoas.forEach(function(p,i){var b="lf.pessoas."+i,id="lf-p"+i;
   h+='<div class="card tight" style="background:var(--bg)"><div class="row between"><b>Pessoa '+(i+1)+'</b>'+(F.pessoas.length>1?'<button class="btn ghost sm" style="color:var(--bad)" data-a="lfRemP" data-v="'+i+'">Remover</button>':'')+'</div>'+
@@ -624,15 +635,31 @@ function mLocNova(){
   '<div class="g2"><div class="fld"><label class="lbl" for="'+id+'-placa">Placa</label><input id="'+id+'-placa" class="in" autocomplete="off" style="text-transform:uppercase" data-bind="'+b+'.placa" value="'+esc(v.placa)+'" placeholder="ABC1D23"></div><div class="fld"><label class="lbl" for="'+id+'-mod">Modelo e cor</label><input id="'+id+'-mod" class="in" data-bind="'+b+'.modelo" value="'+esc(v.modelo)+'" placeholder="Onix prata"></div></div>'+
   docField(b+".doc","Documento do carro (CRLV) (opcional)",id+"-doc")+'</div>'});
   h+='<button class="btn out sm" data-a="lfAddV">+ Adicionar veículo</button>';}
- h+='</section>';
- h+='<section class="card"><h2 class="h2">4. Informações adicionais</h2>'+
+ return h+'</section>'+locCampos4(F);
+}
+function locCampos4(F){
+ return '<section class="card"><h2 class="h2">4. Informações adicionais</h2>'+
  '<div class="fld"><label class="lbl" for="lf-plat">Tipo de hospedagem</label><select id="lf-plat" class="in" data-bind="lf.plataforma">'+["Airbnb","Booking","Temporada direta com o proprietário","Empréstimo para parentes ou amigos","Outra"].map(function(o){return '<option'+(F.plataforma===o?" selected":"")+'>'+o+'</option>'}).join("")+'</select></div>'+
  '<div class="fld"><label class="lbl" for="lf-cont">Contato do responsável</label><input id="lf-cont" class="in" data-bind="lf.contato" value="'+esc(F.contato)+'"></div>'+
  '<div class="fld"><label class="lbl" for="lf-obs">Observações (opcional)</label><textarea id="lf-obs" class="in" data-bind="lf.obs" placeholder="Ex.: horário previsto de chegada">'+esc(F.obs)+'</textarea></div></section>';
- h+='<label class="row" style="align-items:flex-start"><input type="checkbox" id="lf-aceite" data-a="lfAceite" '+(F.aceite?"checked":"")+' style="width:24px;height:24px;margin:0;flex-shrink:0;accent-color:var(--sea)"><span class="small">Declaro que as informações são verdadeiras e que os hóspedes vão seguir o regimento interno. Sou responsável pelos hóspedes durante a estadia.</span></label>';
+}
+function locMoradorFim(F){
+ var h='<label class="row" style="align-items:flex-start"><input type="checkbox" id="lf-aceite" data-a="lfAceite" '+(F.aceite?"checked":"")+' style="width:24px;height:24px;margin:0;flex-shrink:0;accent-color:var(--sea)"><span class="small">Declaro que as informações são verdadeiras e que os hóspedes vão seguir o regimento interno. Sou responsável pelos hóspedes durante a estadia.</span></label>';
  h+='<p class="xs muted">Os documentos ficam visíveis só para a administração e o síndico e são apagados '+S.cfg.locDocsDias+' dias depois do fim da hospedagem.</p>';
- h+=(S.ui.errForm?'<div class="errmsg" role="alert">'+esc(S.ui.errForm)+'</div>':'')+'<button class="btn block" data-a="locEnviar">Enviar para análise</button><button class="btn ghost block" data-a="locListaBtn">Cancelar</button>';
- return h+'</main>';
+ return h+(S.ui.errForm?'<div class="errmsg" role="alert">'+esc(S.ui.errForm)+'</div>':'')+'<button class="btn block" data-a="locEnviar">Enviar para análise</button><button class="btn ghost block" data-a="locListaBtn">Cancelar</button>';
+}
+/** Administração/síndico: incluir locação já autorizada (pedido por telefone, presencialmente...). */
+function formLocAdm(){
+ var F=S.lf,valido=aptoValido(F.apto),mor=valido?moradoresDe(F.apto):[];
+ var h='<section class="card" style="border:2px solid var(--sea)"><div class="row between"><h2 class="h2">Incluir locação / temporada</h2><button class="iconbtn ghost" data-a="locIncluirFechar" aria-label="Fechar">'+ic("x")+'</button></div>'+
+ '<p class="small muted">Para pedidos feitos por telefone, e-mail ou na administração. A locação incluída aqui já entra <b>autorizada</b> e aparece na hora para a portaria.</p>'+
+ '<div class="g2"><div class="fld"><label class="lbl" for="lf-apto">Apartamento</label><input id="lf-apto" class="in" data-bind="lf.apto" data-live="1" value="'+esc(F.apto)+'" placeholder="Ex.: 807 ou COB"></div>'+
+ '<div class="fld"><label class="lbl" for="lf-orig">Pedido por</label><select id="lf-orig" class="in" data-bind="lf.orig">'+["Telefone","Presencialmente","E-mail","WhatsApp"].map(function(o){return '<option'+(F.orig===o?" selected":"")+'>'+o+'</option>'}).join("")+'</select></div></div>'+
+ (F.apto&&!valido?'<p class="hint" style="color:var(--bad)">Unidade inexistente. Use andar + número (ex.: 807) ou a identificação de uma unidade fora do padrão.</p>':'')+
+ '<div class="fld"><label class="lbl" for="lf-mor">Morador responsável (recebe o aviso por e-mail)</label><select id="lf-mor" class="in" data-bind="lf.mor"><option value="">'+(mor.length?"Nenhum (só aviso no app)":"Sem morador cadastrado")+'</option>'+mor.map(function(m){return '<option value="'+esc(m.id)+'"'+(String(F.mor)===String(m.id)?" selected":"")+'>'+esc(m.nome)+'</option>'}).join("")+'</select></div></section>';
+ h+=locCampos(F,TODAY,true);
+ h+='<label class="row" style="align-items:flex-start"><input type="checkbox" id="lf-aceite" data-a="lfAceite" '+(F.aceite?"checked":"")+' style="width:24px;height:24px;margin:0;flex-shrink:0;accent-color:var(--sea)"><span class="small">O responsável pela unidade foi informado e se responsabiliza pelos hóspedes durante a estadia, que vão seguir o regimento interno.</span></label>';
+ return h+(S.ui.errForm?'<div class="errmsg" role="alert">'+esc(S.ui.errForm)+'</div>':'')+'<button class="btn block" data-a="locIncluirEnviar">Incluir locação autorizada</button><button class="btn ghost block" data-a="locIncluirFechar">Cancelar</button>';
 }
 function mLocDet(){
  var u=me(),l=loc(S.ui.locId);if(!l||l.apto!==u.apto){S.screen="loc";return mLoc()}
@@ -649,7 +676,9 @@ function sLocacoes(){
  if(S.ui.locId&&loc(S.ui.locId))return sLocAdm();
  var fil=S.ui.filLoc||"pendente",cnt=function(f){return S.locacoes.filter(function(l){return filtroLoc(l,f)}).length};
  var l=S.locacoes.filter(function(x){return filtroLoc(x,fil)}).sort(function(a,b){return a.de<b.de?-1:1});
- var h='<main class="wrap page"><p class="small muted">Pedidos dos moradores para receber hóspedes. Confira os dados e os documentos antes de aprovar.</p>';
+ var h='<main class="wrap page">';
+ if(S.ui.locIncluir&&S.lf)return h+formLocAdm()+'</main>';
+ h+='<div class="row between wrapr"><p class="small muted" style="margin:0">Pedidos dos moradores para receber hóspedes. Confira os dados e os documentos antes de aprovar.</p><button class="btn sm" data-a="locIncluirBtn">+ Incluir locação</button></div>';
  if(S.ui.okLocAdm)h+='<div class="okmsg" role="status">'+esc(S.ui.okLocAdm)+'</div>';
  h+='<div class="chips">'+[["pendente","Aguardando"],["aprovada","Aprovadas"],["recusada","Recusadas"],["cancelada","Canceladas"],["todas","Todas"]].map(function(x){return '<button class="chip'+(fil===x[0]?" on":"")+'" data-a="filLoc" data-v="'+x[0]+'">'+x[1]+' ('+cnt(x[0])+')</button>'}).join("")+'</div>';
  h+=l.length?l.map(function(x){return locCard(x,true)}).join(""):empty("Nenhuma solicitação neste filtro.");
@@ -659,8 +688,8 @@ function filtroLoc(l,f){var st=locSt(l);if(f==="todas")return true;if(f==="aprov
 function sLocAdm(){
  var l=loc(S.ui.locId),st=locSt(l);
  var h='<main class="wrap page"><button class="btn ghost sm" style="align-self:flex-start;color:var(--sea);padding-left:0" data-a="locVoltar">'+ic("back",18)+'Todas as solicitações</button>'+
- '<section class="card"><div class="row between wrapr"><b style="font-size:20px;color:var(--sea-strong)">Apto '+l.apto+'</b>'+locPill(l)+'</div><div class="small">'+esc(periodo(l))+'</div><div class="xs muted">Pedido por '+esc(l.por)+' em '+esc(l.criado)+'</div></section>';
- if(st==="pendente")h+='<div class="note">'+ic("shield",20)+'<span><b>Antes de aprovar, confira:</b> nome, RG e CPF de cada pessoa; documentos legíveis e placa igual ao CRLV, quando anexados e período de acordo com o regimento.</span></div>';
+ '<section class="card"><div class="row between wrapr"><b style="font-size:20px;color:var(--sea-strong)">Apto '+l.apto+'</b>'+locPill(l)+'</div><div class="small">'+esc(periodo(l))+'</div><div class="xs muted">'+(l.origem?esc(l.origem)+' · responsável: '+esc(l.por):'Pedido por '+esc(l.por))+' em '+esc(l.criado)+'</div></section>';
+ if(st==="pendente")h+='<div class="note">'+ic("shield",20)+'<span><b>Antes de aprovar, confira:</b> nome, RG e CPF de cada pessoa; documentos legíveis e placa igual ao CRLV, quando anexados; e período de acordo com o regimento.</span></div>';
  else h+=locStatusBox(l);
  h+=locDetalhe(l,true);
  if(st==="pendente")h+='<div class="g2"><button class="btn okb" data-a="locAprovar" data-v="'+l.id+'">Aprovar</button><button class="btn badb" data-a="locRecusar" data-v="'+l.id+'">Recusar</button></div>';
@@ -857,12 +886,12 @@ function formNovaRes(){
  return h;
 }
 function sReservas(){
- var fil=S.ui.filRes||"ativas",l=S.reservas.filter(function(r){return fil==="ativas"?ativa(r)&&r.data>=TODAY:fil==="aguardando"?r.status==="aguardando":fil==="canc"?(r.status==="cancelada"||r.status==="recusada"):true}).sort(function(a,b){return a.data<b.data?-1:1});
+ var fil=S.ui.filRes||"ativas",l=S.reservas.filter(function(r){return fil==="ativas"?ativa(r)&&r.data>=TODAY:fil==="aguardando"?r.status==="aguardando":fil==="canc"?(r.status==="cancelada"||r.status==="recusada"||r.status==="vencida"):true}).sort(function(a,b){return a.data<b.data?-1:1});
  var h='<main class="wrap page">';
  if(S.ui.form==="novaRes")h+=formNovaRes();else if(S.ui.form==="cal")h+=calAdmin();
  if(S.ui.form!=="novaRes")h+='<div class="g2"><button class="btn" data-a="sNovaRes">'+ic("calplus",20)+'Incluir reserva</button><button class="btn out" data-a="sVerCal"'+(S.ui.form==="cal"?' aria-pressed="true"':'')+'>'+ic("cal",20)+'Ver calendário</button></div>';
  if(S.ui.okRes)h+='<div class="okmsg" role="status">'+esc(S.ui.okRes)+'</div>';
- h+='<div class="chips">'+[["ativas","Próximas"],["aguardando","Aguardando"],["canc","Canceladas/recusadas"],["todas","Todas"]].map(function(x){return '<button class="chip'+(fil===x[0]?" on":"")+'" data-a="filRes" data-v="'+x[0]+'">'+x[1]+'</button>'}).join("")+'</div>';
+ h+='<div class="chips">'+[["ativas","Próximas"],["aguardando","Aguardando"],["canc","Canceladas/recusadas/vencidas"],["todas","Todas"]].map(function(x){return '<button class="chip'+(fil===x[0]?" on":"")+'" data-a="filRes" data-v="'+x[0]+'">'+x[1]+'</button>'}).join("")+'</div>';
  h+=l.length?l.map(function(r){return cardReservaAdm(r,true)}).join(""):empty("Nenhuma reserva neste filtro.");
  return h+'<p class="xs muted">Inclusões e cancelamentos feitos pela administração ficam na auditoria, e o morador é avisado por e-mail e no app.</p></main>';
 }
@@ -930,7 +959,7 @@ function sEncomendas(){
  var tab=S.ui.sEncTab||"pend",st={pend:"pendente",ret:"retirada",exc:"excluida"}[tab],l=S.encomendas.filter(function(e){return e.status===st}).sort(function(a,b){return (a.data+a.hora)<(b.data+b.hora)?1:-1});
  var h='<main class="wrap page"><div class="seg"><button class="'+(tab==="pend"?"on":"")+'" data-a="sEncTab" data-v="pend">Na portaria</button><button class="'+(tab==="ret"?"on":"")+'" data-a="sEncTab" data-v="ret">Retiradas</button><button class="'+(tab==="exc"?"on":"")+'" data-a="sEncTab" data-v="exc">Excluídas</button></div>';
  if(S.ui.okEnc)h+='<div class="okmsg" role="status">'+esc(S.ui.okEnc)+'</div>';
- h+=l.length?l.map(function(e){return '<section class="card tight"><div class="row between"><b style="font-size:18px;color:var(--sea-strong)">Apto '+e.apto+'</b>'+(tab==="pend"?avisoPill(e):tab==="ret"?'<span class="pill p-ok">Retirada</span>':'<span class="pill p-off">Excluída</span>')+'</div><div class="row">'+(e.foto?'<img class="thumb" src="'+e.foto+'" alt="Foto da encomenda">':'')+'<div class="grow"><div class="small">'+(e.temFoto&&!e.foto?'<button class="btn ghost sm" style="float:right;color:var(--sea)" data-a="verFoto" data-v="'+e.id+'">'+ic("cam",16)+'Foto</button>':'')+''+esc(e.tipo)+(e.rem?" · "+esc(e.rem):"")+'</div><div class="xs muted">Chegou '+esc(quando(e.data,e.hora))+' · recebida por '+esc(e.porteiro)+' · cód. '+e.cod+'</div></div></div>'+(e.waEm?'<div class="xs" style="color:#178A45;font-weight:700">WhatsApp enviado '+esc(e.waEm)+'</div>':'')+(tab==="ret"?'<div class="xs">Retirada '+esc(e.em)+' por <b>'+esc(e.por)+'</b> · entregue por '+esc(e.entregue)+'</div>':'')+(e.editEm?'<div class="xs muted">Alterada '+esc(e.editEm)+' por '+esc(e.editPor)+'</div>':'')+
+ h+=l.length?l.map(function(e){return '<section class="card tight"><div class="row between"><b style="font-size:18px;color:var(--sea-strong)">Apto '+e.apto+'</b>'+(tab==="pend"?avisoPill(e):tab==="ret"?'<span class="pill p-ok">Retirada</span>':'<span class="pill p-off">Excluída</span>')+'</div><div class="row">'+(e.foto?'<img class="thumb" src="'+e.foto+'" alt="Foto da encomenda">':'')+'<div class="grow"><div class="small">'+(e.temFoto&&!e.foto?'<button class="btn ghost sm" style="float:right;color:var(--sea)" data-a="verFoto" data-v="'+e.id+'">'+ic("cam",16)+'Foto</button>':'')+''+esc(e.tipo)+(e.rem?" · "+esc(e.rem):"")+'</div><div class="xs muted">Chegou '+esc(quando(e.data,e.hora))+' · recebida por '+esc(e.porteiro)+' · cód. '+e.cod+'</div></div></div>'+(e.waEm?'<div class="xs" style="color:#178A45;font-weight:700">WhatsApp enviado '+esc(e.waEm)+'</div>':'')+(tab==="ret"?'<div class="xs">Retirada '+esc(e.em)+' por <b>'+esc(e.por)+'</b> · entregue por '+esc(e.entregue)+(e.temAss?' · <a href="#" data-a="verAss" data-v="'+e.id+'">ver assinatura</a>':'')+'</div>':'')+(e.editEm?'<div class="xs muted">Alterada '+esc(e.editEm)+' por '+esc(e.editPor)+'</div>':'')+
  (tab==="exc"?'<div class="xs" style="color:var(--bad);font-weight:600">Excluída '+esc(e.excEm)+' por '+esc(e.excPor)+' · motivo: '+esc(e.excMotivo)+'</div>':'<div class="row" style="gap:8px"><button class="btn out sm" data-a="encEditar" data-v="'+e.id+'">Editar</button><button class="btn ghost sm" style="color:var(--bad)" data-a="encExcluir" data-v="'+e.id+'">Excluir</button></div>')+'</section>'}).join(""):empty(tab==="exc"?"Nenhuma encomenda excluída.":"Nada por aqui.");
  return h+'<p class="xs muted">Alterações e exclusões ficam na auditoria. Ao excluir, a foto é apagada na hora.</p></main>';
 }
@@ -1000,7 +1029,9 @@ function sConfig(){
  '<section class="card"><h2 class="h2">Portaria</h2><div class="fld"><label class="lbl" for="c-pmail">E-mail do acesso único da portaria</label><input id="c-pmail" class="in" type="email" data-bind="f.portariaEmail" value="'+esc(f.portariaEmail)+'"><span class="hint">Usado só no celular da portaria. Os porteiros escolhem o nome antes de registrar.</span></div>'+
  '<div class="fld"><label class="lbl" for="c-turnos">Turnos dos porteiros (um por linha)</label><textarea id="c-turnos" class="in" rows="4" data-bind="f.turnosPort">'+esc(f.turnosPort)+'</textarea><span class="hint">Para criar um turno, escreva numa linha nova. Para excluir, apague a linha. Quem estava num turno excluído continua com ele até a ficha ser editada.</span></div>'+
  num("c-prel","portRelogin","Perguntar o porteiro de novo após (minutos sem uso)")+
- '<button class="switchrow" data-a="fPin" aria-pressed="'+!!f.exigirPin+'"><span><b style="display:block">Exigir PIN do porteiro</b><span class="small muted">Depois de tocar no nome, o porteiro digita o PIN de 4 dígitos cadastrado na ficha dele</span></span><span class="toggle'+(f.exigirPin?" on":"")+'"><i></i></span></button></section>'+
+ '<button class="switchrow" data-a="fPin" aria-pressed="'+!!f.exigirPin+'"><span><b style="display:block">Exigir PIN do porteiro</b><span class="small muted">Depois de tocar no nome, o porteiro digita o PIN de 4 dígitos cadastrado na ficha dele</span></span><span class="toggle'+(f.exigirPin?" on":"")+'"><i></i></span></button>'+
+ '<button class="switchrow" data-a="fTogCfg" data-v="assRet" aria-pressed="'+!!f.assRet+'"><span><b style="display:block">Pedir assinatura na retirada</b><span class="small muted">Quem retira assina com o dedo no celular da portaria. Desligado, a retirada é registrada só com o nome, como antes</span></span><span class="toggle'+(f.assRet?" on":"")+'"><i></i></span></button>'+
+ (f.assRet?num("c-assd","assDias","Guardar a assinatura por (dias após a retirada)","De 30 a 1825 dias (5 anos). Depois disso, a assinatura é apagada sozinha. O nome de quem retirou continua no histórico."):'')+'</section>'+
  '<section class="card"><h2 class="h2">Locação / temporada</h2>'+num("c-lant","locAntMin","Antecedência mínima do pedido (dias)")+'</section>'+
  '<section class="card"><h2 class="h2">Permissões por vínculo</h2><p class="small muted">Desligadas, todos os moradores da unidade têm o mesmo acesso, seja qual for o vínculo.</p>'+
  [["locSoProp","Locação / temporada só pelo proprietário","Inquilino, familiar e dependente não conseguem pedir autorização"],["inclSoTitular","Pedir inclusão só por proprietário ou inquilino","Familiar e dependente usam o app, mas não pedem inclusão de outras pessoas"]].map(function(d){return '<button class="switchrow" data-a="fTogCfg" data-v="'+d[0]+'" aria-pressed="'+!!f[d[0]]+'"><span><b style="display:block">'+d[1]+'</b><span class="small muted">'+d[2]+'</span></span><span class="toggle'+(f[d[0]]?" on":"")+'"><i></i></span></button>'}).join("")+'</section>'+
@@ -1030,13 +1061,17 @@ function sConfig(){
 function vSheet(){
  var s=S.sheet;if(!s)return "";var h="";
  function head(t){return '<div class="row between wrap"><h2 style="font-size:20px;font-weight:800">'+esc(t)+'</h2><button class="iconbtn" data-a="fechaSheet" aria-label="Fechar">'+ic("x",20)+'</button></div>'}
- if(s.t==="foto"){var e=encPorId(s.id);
+ if(s.t==="ass"){var ea=encPorId(s.id);
+  h=head("Assinatura da retirada")+'<div class="wrap stack g12"><div class="small">'+esc(ea.tipo)+(ea.rem?" · "+esc(ea.rem):"")+' · apto <b>'+esc(ea.apto)+'</b><div class="xs muted">Retirada '+esc(ea.em)+' por <b>'+esc(ea.por)+'</b>'+(ea.entregue?' · entregue por '+esc(ea.entregue):'')+'</div></div>'+
+  (ea.ass?'<img class="assimg" src="'+ea.ass+'" alt="Assinatura de '+esc(ea.por)+'">':'<p class="small muted">Assinatura não disponível.</p>')+'<p class="xs muted">A assinatura fica guardada em pasta privada e só aparece para moradores desta unidade e para a administração. É apagada sozinha depois do prazo definido pela administração.</p></div>';}
+ else if(s.t==="foto"){var e=encPorId(s.id);
   h=head(e.tipo+" · "+(e.rem||"sem remetente"))+'<div class="wrap stack g12"><div class="photo">'+(e.foto?'<img src="'+e.foto+'" alt="Foto da encomenda">':'<div class="stack" style="align-items:center;text-align:center;padding:20px">'+ic("box",48)+'<span class="small">A portaria não tirou foto desta encomenda.</span></div>')+'</div><p class="xs muted">A foto fica guardada em pasta privada e só aparece para moradores desta unidade e para a administração.</p></div>';}
  else if(s.t==="retirada"){var e2=encPorId(s.id),mor=moradoresDe(e2.apto),f=S.f;
   h=head("Registrar retirada")+'<div class="wrap stack g12"><div class="small">Apto <b>'+e2.apto+'</b> · '+esc(e2.tipo)+(e2.rem?" · "+esc(e2.rem):"")+'<div class="xs muted">Chegou '+esc(quando(e2.data,e2.hora))+'</div></div>'+
   '<div class="fld"><span class="lbl">Quem está retirando?</span><div class="chips">'+mor.map(function(m){return '<button class="chip'+(f.quem===m.nome?" on":"")+'" data-a="fQuem" data-v="'+esc(m.nome)+'">'+esc(m.nome)+'</button>'}).join("")+'<button class="chip'+(f.quem==="__outra"?" on":"")+'" data-a="fQuem" data-v="__outra">Outra pessoa</button></div></div>'+
   (f.quem==="__outra"?'<div class="fld"><label class="lbl" for="r-outra">Nome de quem retirou</label><input id="r-outra" class="in" data-bind="f.outra" value="'+esc(f.outra||"")+'" placeholder="Ex.: Ana (diarista)"></div>':'')+
   '<div class="note">'+ic("info",20)+'<span>Código desta encomenda: <b style="letter-spacing:.08em">'+e2.cod+'</b>. Use só para conferir, se quiser. Não é preciso digitá-lo.</span></div>'+
+  (S.cfg.assRet?'<div class="fld"><div class="row between"><span class="lbl" style="margin:0">Assinatura de quem retira</span><button class="btn ghost sm" data-a="assLimpar">Limpar</button></div><canvas class="assin" data-ass="1" aria-label="Área para assinar com o dedo"></canvas><span class="hint">Peça para '+esc(f.quem&&f.quem!=="__outra"?f.quem.split(" ")[0]:"a pessoa")+' assinar com o dedo dentro do quadro.</span></div>':'')+
   (S.ui.errForm?'<div class="errmsg" role="alert">'+esc(S.ui.errForm)+'</div>':'')+'<button class="btn okb block" data-a="pConfRet">Confirmar retirada</button><button class="btn ghost block" data-a="fechaSheet">Cancelar</button></div>';}
  else if(s.t==="cancelRes"){var r=resPorId(s.id),a=area(r.area);
   h=head("Cancelar reserva?")+'<div class="wrap stack g12"><p>'+esc(a.nome)+' em <b>'+fmtLong(r.data)+'</b>. Dentro do prazo, não há cobrança da taxa.</p><button class="btn badb block" data-a="confCancel" data-v="'+r.id+'">Sim, cancelar</button><button class="btn ghost block" data-a="fechaSheet">Manter reserva</button></div>';}
@@ -1140,8 +1175,17 @@ function render(){
  document.querySelectorAll("input[data-foto]").forEach(function(x){x.addEventListener("change",onFoto)});
  document.querySelectorAll("input[data-file]").forEach(function(x){x.addEventListener("change",onDoc)});
  document.querySelectorAll("input[data-pdf]").forEach(function(x){x.addEventListener("change",onPdf)});
+ document.querySelectorAll("canvas[data-ass]").forEach(prepAss);
  document.body.className=S.role?"logged r-"+S.role:"";
 }
+function assPontos(){return (S.ass||[]).reduce(function(n,t){return n+t.length},0)}
+function assDesenhar(ctx,w,h,lw){ctx.lineCap="round";ctx.lineJoin="round";ctx.strokeStyle="#1d1d1b";ctx.lineWidth=lw;(S.ass||[]).forEach(function(t){ctx.beginPath();t.forEach(function(p,i){if(i)ctx.lineTo(p[0]*w,p[1]*h);else ctx.moveTo(p[0]*w,p[1]*h)});if(t.length===1)ctx.lineTo(t[0][0]*w+.5,t[0][1]*h);ctx.stroke()})}
+function prepAss(c){var dpr=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*dpr;c.height=h*dpr;var ctx=c.getContext("2d");ctx.scale(dpr,dpr);S.ass=S.ass||[];assDesenhar(ctx,w,h,2.6);var atual=null;
+ function pt(ev){var r=c.getBoundingClientRect();return [Math.max(0,Math.min(1,(ev.clientX-r.left)/r.width)),Math.max(0,Math.min(1,(ev.clientY-r.top)/r.height))]}
+ c.addEventListener("pointerdown",function(ev){ev.preventDefault();try{c.setPointerCapture(ev.pointerId)}catch(e){}atual=[pt(ev)];S.ass.push(atual);if(S.role==="portaria"&&S.porteiro)S.portLast=Date.now()});
+ c.addEventListener("pointermove",function(ev){if(!atual)return;ev.preventDefault();var p=pt(ev),q=atual[atual.length-1];atual.push(p);ctx.lineCap="round";ctx.strokeStyle="#1d1d1b";ctx.lineWidth=2.6;ctx.beginPath();ctx.moveTo(q[0]*w,q[1]*h);ctx.lineTo(p[0]*w,p[1]*h);ctx.stroke()});
+ ["pointerup","pointercancel","pointerleave"].forEach(function(n){c.addEventListener(n,function(){if(atual&&S.ui.errForm&&assPontos()>=8){S.ui.errForm="";render()}atual=null})})}
+function assPng(){var c=document.createElement("canvas");c.width=600;c.height=220;var x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,600,220);assDesenhar(x,600,220,4);return c.toDataURL("image/png")}
 function onDoc(ev){var t=ev.target,file=t.files&&t.files[0],path=t.dataset.file;if(!file)return;
  if(!/^image\//.test(file.type)){if(!(file.type==="application/pdf"||/\.pdf$/i.test(file.name))){toast("Anexe uma foto ou um PDF.");return}
   if(!S.real){setPath(path,{nome:file.name,tipo:"pdf"});render();return}
@@ -1178,6 +1222,23 @@ var A={
  escolhePorteiro:function(v){var pp=user(v);if(S.cfg.exigirPin&&(S.real?pp.temPin:pp.pin)){S.f={pinIn:""};S.ui.errForm="";S.sheet={t:"pin",id:v};return}S.porteiro=v;S.portLast=Date.now();toast("Olá, "+pp.nome.split(" ")[0]+"! O que você registrar fica no seu nome.")},
  trocaPorteiro:function(){S.porteiro=null;S.cracha="";S.ui.okReg="";S.ui.okRet="";S.f={};if(S.screen==="pres")S.screen="enc"},
  locNovaBtn:function(){S.lf=novoLf();go("locNova")},
+ locIncluirBtn:function(){S.lf=novoLf();S.lf.contato="";S.lf.apto="";S.lf.orig="Telefone";S.lf.mor="";S.ui.errForm="";S.ui.okLocAdm="";S.ui.locIncluir=true;window.scrollTo(0,0)},
+ locIncluirFechar:function(){S.ui.locIncluir=false;S.lf=null;S.ui.errForm=""},
+ locIncluirEnviar:function(){var F=S.lf,e="";
+  if(!aptoValido(F.apto))e="Informe um apartamento válido.";
+  else if(!F.de||!F.ate)e="Informe as datas de entrada e saída.";else if(F.ate<=F.de)e="A saída precisa ser depois da entrada.";else if(F.ate<TODAY)e="A saída já passou. Informe um período que ainda não terminou.";
+  if(!e)F.pessoas.some(function(p,i){var n="Pessoa "+(i+1)+": ";if(p.nome.trim().split(/\s+/).length<2)e=n+"informe o nome completo.";else if(!p.rg.trim())e=n+"informe o RG.";else if(!cpfOk(p.cpf))e=n+"CPF inválido. Confira os números.";return !!e});
+  if(!e&&!F.semCarro)F.veiculos.some(function(v,i){var n="Veículo "+(i+1)+": ";if(!/^[A-Za-z]{3}-?[0-9][A-Za-z0-9][0-9]{2}$/.test(v.placa.trim()))e=n+"placa inválida (ex.: ABC1D23).";return !!e});
+  if(!e&&!F.aceite)e="Confirme que o responsável pela unidade foi informado.";
+  if(e){S.ui.errForm=e;return}
+  S.ui.errForm="";if(!S.real){toast("Disponível no app conectado ao servidor.");return}
+  if(S.ui.ocupado)return;S.ui.ocupado=true;toast("Incluindo a locação…");
+  chamarServidor("locacao.incluir",{unidade:String(F.apto).trim().toUpperCase(),origem:F.orig,responsavel:F.mor,de:F.de,ate:F.ate,plataforma:F.plataforma,contato:F.contato,obs:F.obs,aceite:true,semCarro:F.semCarro,
+   pessoas:F.pessoas.map(function(p){return {nome:p.nome.trim(),rg:p.rg.trim(),cpf:p.cpf,doc:p.doc&&p.doc.url}}),
+   veiculos:F.semCarro?[]:F.veiculos.map(function(v){return {placa:v.placa.trim().toUpperCase(),modelo:v.modelo.trim(),doc:v.doc&&v.doc.url}})},{grava:true,tempoLimiteMs:120000}).then(function(d){
+   var l=locDoServidor(d);if(!loc(l.id))S.locacoes.push(l);S.lf=null;S.ui.locIncluir=false;S.ui.filLoc="aprovada";
+   S.ui.okLocAdm="Locação do apto "+l.apto+" ("+periodo(l)+") incluída e autorizada. A portaria já tem a lista de hóspedes.";window.scrollTo(0,0);render()},
+   function(e){S.ui.errForm=e.mensagem;render()}).finally(function(){S.ui.ocupado=false})},
  locListaBtn:function(){go("loc")},
  abrirLoc:function(v){if(S.role==="morador"){go("locDet")}S.ui.locId=String(v);window.scrollTo(0,0)},
  locVoltar:function(){S.ui.locId=null},
@@ -1341,7 +1402,7 @@ var A={
   notify(un,n>1?n+" encomendas chegaram na portaria: "+desc+".":desc+" chegou na portaria.","encomendas");audit(n>1?"Registrou encomendas":"Registrou encomenda",unLabel(un)+" · "+desc);
   S.ui.lastEnc=ids[0];S.ui.okReg=(n>1?n+" encomendas registradas":"Registrada")+" para "+unLabel(un)+" às "+hora+" (código"+(n>1?"s ":" ")+cods.join(", ")+"). "+(mor.length?"O morador já vê o aviso no app"+(aviso==="email"?" e vai receber um e-mail.":"."):"Unidade sem cadastro: avise por interfone.");
   f.itens=[novoItem()]},
- pRetirada:function(v){S.f={quem:"",outra:""};var e=encPorId(v);var m=moradoresDe(e.apto);if(m.length)S.f.quem=m[0].nome;S.sheet={t:"retirada",id:v};S.ui.okRet=""},
+ pRetirada:function(v){S.f={quem:"",outra:""};S.ass=[];var e=encPorId(v);var m=moradoresDe(e.apto);if(m.length)S.f.quem=m[0].nome;S.sheet={t:"retirada",id:v};S.ui.okRet=""},
  fQuem:function(v){S.f.quem=v},
  waAbrir:function(v){var e=encPorId(v),ds=waDest(e.apto);Object.assign(S.f,{waDest:ds[0]&&ds[0].id,waMsg:null,waTeste:""});S.ui.waDet=false;S.sheet={t:"wa",id:v,stage:"prev"}},
  waDest:function(v){var e=encPorId(S.sheet.id);S.f.waDest=v;S.f.waMsg=waTexto(e,user(v))},
@@ -1352,11 +1413,15 @@ var A={
   if(S.real)chamarServidor("encomendas.registrarWhatsApp",{porteiroId:S.porteiro,cracha:S.cracha,id:e.id,para:dest.id},{grava:true,silencioso:true}).then(function(d){mesclarEnc(d.encomendas.map(encDoServidor));render()},function(er){crachaVencido(er);toast(er.mensagem);render()});
   S.sheet.sent=true;S.sheet.hora=hhmm();loteDe(e).forEach(function(x){x.waEm="Hoje "+S.sheet.hora+" · para "+dest.nome.split(" ")[0]});audit("Avisou no WhatsApp","Apto "+e.apto+" · "+e.tipo+" · para "+dest.nome)},
  waVoltar:function(){S.sheet=null;delete S.f.waDest;delete S.f.waMsg;delete S.f.waTeste;toast("Aviso por WhatsApp registrado.")},
- pConfRet:function(){if(!S.f.quem||(S.f.quem==="__outra"&&!(S.f.outra||"").trim())){S.ui.errForm="Informe quem está retirando.";return}S.ui.errForm="";var e=encPorId(S.sheet.id),f=S.f,quem=f.quem==="__outra"?f.outra.trim():f.quem,u=me();
-  if(S.real){if(S.ui.ocupado)return;S.ui.ocupado=true;chamarServidor("encomendas.retirar",{porteiroId:S.porteiro,cracha:S.cracha,id:e.id,retiradaPor:quem},{grava:true}).then(function(d){var x=encDoServidor(d);mesclarEnc([x]);S.sheet=null;S.f={};S.portLast=Date.now();S.ui.okRet="Retirada do apto "+x.apto+" registrada às "+d.retiradaHora+" (retirado por "+quem+").";render()},function(er){crachaVencido(er);S.ui.errForm=er.mensagem;render()}).finally(function(){S.ui.ocupado=false});return}
-  e.status="retirada";e.por=quem;e.em="Hoje "+hhmm();e.entregue=u.nome;S.sheet=null;
+ pConfRet:function(){if(!S.f.quem||(S.f.quem==="__outra"&&!(S.f.outra||"").trim())){S.ui.errForm="Informe quem está retirando.";return}
+  var png="";if(S.cfg.assRet){if(assPontos()<8){S.ui.errForm="Peça para quem está retirando assinar no quadro.";return}png=assPng()}
+  S.ui.errForm="";var e=encPorId(S.sheet.id),f=S.f,quem=f.quem==="__outra"?f.outra.trim():f.quem,u=me();
+  if(S.real){if(S.ui.ocupado)return;S.ui.ocupado=true;var dr={porteiroId:S.porteiro,cracha:S.cracha,id:e.id,retiradaPor:quem};if(png)dr.assinatura=png;chamarServidor("encomendas.retirar",dr,{grava:true}).then(function(d){var x=encDoServidor(d);mesclarEnc([x]);S.sheet=null;S.f={};S.portLast=Date.now();S.ui.okRet="Retirada do apto "+x.apto+" registrada às "+d.retiradaHora+" (retirado por "+quem+").";render()},function(er){crachaVencido(er);S.ui.errForm=er.mensagem;render()}).finally(function(){S.ui.ocupado=false});return}
+  e.status="retirada";e.por=quem;e.em="Hoje "+hhmm();e.entregue=u.nome;if(png){e.temAss=true;e.ass=png}S.sheet=null;
   audit("Registrou retirada","Apto "+e.apto+" · "+e.tipo+" · retirado por "+quem);
   S.ui.okRet="Retirada do apto "+e.apto+" registrada às "+hhmm()+" (retirado por "+quem+").";S.f={}},
+ assLimpar:function(){S.ass=[]},
+ verAss:function(v){var ea=encPorId(v);if(!ea)return;if(S.real&&ea.temAss&&!ea.ass){chamarServidor("encomendas.assinatura",{id:v}).then(function(d){ea.ass=d.assinatura;S.sheet={t:"ass",id:v};render()},function(e){toast(e.mensagem);render()});return}S.sheet={t:"ass",id:v}},
  pOpenRes:function(v){S.ui.openRes=String(S.ui.openRes)===String(v)?null:String(v)},
  /* síndico */
  sAprovar:function(v){var r=resPorId(v);if(S.real){chamarServidor("reservas.decidir",{id:r.id,aprovar:true},{grava:true}).then(function(d){Object.assign(r,resDoServidor(d));toast("Reserva do apto "+r.apto+" aprovada. O morador foi avisado.")},function(e){toast(e.mensagem);carregarReservas()});return}r.status="confirmada";audit("Aprovou reserva",area(r.area).nome+" · apto "+r.apto+" · "+fmtD(r.data));notify(r.apto,"Sua reserva de "+area(r.area).nome+" em "+fmtD(r.data)+" foi aprovada.","reservas");toast("Reserva do apto "+r.apto+" aprovada. O morador foi avisado.")},
@@ -1469,7 +1534,7 @@ var A={
  sSalvaCfg:function(){var f=S.f,tot=parseInt(f.cota,10),res=parseInt(f.emailReserva,10);if(!(tot>0&&tot<=100)||!(res>0&&res<tot)){S.ui.okCfg="";S.ui.errCfg="Confira os e-mails por dia: total de 1 a 100 e códigos menor que o total.";return}S.ui.errCfg="";
   if(S.real){var val={};CFGMAP.forEach(function(m){var v=f[m[0]];if(v===undefined)return;val[m[1]]=typeof S.cfg[m[0]]==="number"?parseInt(v,10):typeof S.cfg[m[0]]==="boolean"?!!v:String(v)});
    chamarServidor("config.salvar",{valores:val},{grava:true}).then(function(d){var u=d.unidades;S.ui.okCfg=d.alteradas?"Configurações salvas ("+d.alteradas+" alteração"+(d.alteradas>1?"ões":"")+")."+(u&&(u.novas||u.inativadas)?" Unidades: "+u.novas+" novas, "+u.inativadas+" inativadas.":""):"Nada mudou.";aplicarConfig(d.config);S.f={};render()},function(e){S.ui.okCfg="";S.ui.errCfg=e.mensagem;render()});return}
-  ["andares","porLado","cota","lembrete","codigoMin","codigoTent","sesMorador","sesPortaria","sesAdm","portRelogin","locAntMin","locDocsDias","fotoDias","bkpDias","cadDia","cadPessoas","emailReserva"].forEach(function(k){var n=parseInt(f[k],10);if(n>0)S.cfg[k]=n});S.cfg.nome=f.nome;S.cfg.porAndar=S.cfg.porLado*2;if(/\S+@\S+/.test(f.portariaEmail||""))S.cfg.portariaEmail=f.portariaEmail.trim().toLowerCase();S.cfg.waAtivo=!!f.waAtivo;S.cfg.exigirPin=!!f.exigirPin;S.cfg.locSoProp=!!f.locSoProp;S.cfg.inclSoTitular=!!f.inclSoTitular;S.cfg.waNumero=f.waNumero;if(String(f.waModelo).trim())S.cfg.waModelo=f.waModelo;audit("Alterou configurações",S.cfg.andares+" andares · "+S.cfg.porLado+" aptos por lado (A e B)");S.ui.okCfg="Configurações salvas.";S.f={}}
+  ["andares","porLado","cota","lembrete","codigoMin","codigoTent","sesMorador","sesPortaria","sesAdm","portRelogin","locAntMin","locDocsDias","fotoDias","bkpDias","cadDia","cadPessoas","emailReserva"].forEach(function(k){var n=parseInt(f[k],10);if(n>0)S.cfg[k]=n});S.cfg.nome=f.nome;S.cfg.porAndar=S.cfg.porLado*2;if(/\S+@\S+/.test(f.portariaEmail||""))S.cfg.portariaEmail=f.portariaEmail.trim().toLowerCase();S.cfg.waAtivo=!!f.waAtivo;S.cfg.exigirPin=!!f.exigirPin;S.cfg.assRet=!!f.assRet;if(parseInt(f.assDias,10)>0)S.cfg.assDias=parseInt(f.assDias,10);S.cfg.locSoProp=!!f.locSoProp;S.cfg.inclSoTitular=!!f.inclSoTitular;S.cfg.waNumero=f.waNumero;if(String(f.waModelo).trim())S.cfg.waModelo=f.waModelo;audit("Alterou configurações",S.cfg.andares+" andares · "+S.cfg.porLado+" aptos por lado (A e B)");S.ui.okCfg="Configurações salvas.";S.f={}}
 };
 
 document.addEventListener("click",function(ev){
@@ -1528,7 +1593,7 @@ function carregarPedidos(){return chamarServidor("cadastro.listar",{},{silencios
  l.forEach(function(g){S.srvMor[g.pedido]=g.moradores||[];g.pessoas.forEach(function(p){lista.push({id:p.id,pedido:g.pedido,origem:g.origem,solicitante:g.solicitante,apto:g.unidade,criado:g.criadoEm,nome:p.nome,email:p.email,tel:p.telefone||"",semTel:!!p.semTelefone,vinc:p.vinculo,wa:!!p.whatsapp,status:p.status,decididoPor:p.decididoPor,decididoEm:p.decididoEm,motivo:p.motivoInterno,alertas:p.alertas||[]})})});
  S.solicitacoes=lista;render()},function(e){toast(e.mensagem);render()})}
 function carregarMeusPedidos(){return chamarServidor("cadastro.meusPedidos",{},{silencioso:true}).then(function(l){S.meusPedidos=l||[];render()},function(){})}
-var CFGMAP=[["nome","nomeCondominio"],["andares","andares"],["porLado","aptosPorLado"],["cota","cotaEmailDia"],["emailReserva","emailReservadoCodigos"],["lembrete","lembreteRetiradaDias"],["codigoMin","codigoValidadeMin"],["codigoTent","codigoTentativas"],["sesMorador","sessaoMoradorDias"],["sesPortaria","sessaoPortariaDias"],["sesAdm","sessaoAdmDias"],["portariaEmail","portariaEmail"],["portRelogin","portariaReloginMin"],["exigirPin","exigirPinPorteiro"],["locAntMin","locAntecedenciaDias"],["locDocsDias","locDocsDias"],["fotoDias","fotoEncomendaDias"],["bkpDias","backupDias"],["cadDia","cadastroPedidosDia"],["cadPessoas","cadastroPessoasPorPedido"],["locSoProp","locSoProprietario"],["inclSoTitular","inclusaoSoTitular"],["waAtivo","waAtivo"],["waNumero","waNumero"],["waModelo","waModelo"],["emailEnc","emailEncomendas"],["emailLem","emailLembretes"],["emailRes","emailReservas"],["emailLoc","emailLocacao"],["bkpFreq","backupFrequencia"],["ctTel","contatoAdmTelefones"],["ctEmail","contatoAdmEmail"],["ctHor","contatoAdmHorario"],["ctSind","contatoSindicoTelefone"],["turnosPort","turnosPorteiro"]];
+var CFGMAP=[["nome","nomeCondominio"],["andares","andares"],["porLado","aptosPorLado"],["cota","cotaEmailDia"],["emailReserva","emailReservadoCodigos"],["lembrete","lembreteRetiradaDias"],["codigoMin","codigoValidadeMin"],["codigoTent","codigoTentativas"],["sesMorador","sessaoMoradorDias"],["sesPortaria","sessaoPortariaDias"],["sesAdm","sessaoAdmDias"],["portariaEmail","portariaEmail"],["portRelogin","portariaReloginMin"],["exigirPin","exigirPinPorteiro"],["locAntMin","locAntecedenciaDias"],["locDocsDias","locDocsDias"],["fotoDias","fotoEncomendaDias"],["assRet","assinaturaRetirada"],["assDias","assinaturaDias"],["bkpDias","backupDias"],["cadDia","cadastroPedidosDia"],["cadPessoas","cadastroPessoasPorPedido"],["locSoProp","locSoProprietario"],["inclSoTitular","inclusaoSoTitular"],["waAtivo","waAtivo"],["waNumero","waNumero"],["waModelo","waModelo"],["emailEnc","emailEncomendas"],["emailLem","emailLembretes"],["emailRes","emailReservas"],["emailLoc","emailLocacao"],["bkpFreq","backupFrequencia"],["ctTel","contatoAdmTelefones"],["ctEmail","contatoAdmEmail"],["ctHor","contatoAdmHorario"],["ctSind","contatoSindicoTelefone"],["turnosPort","turnosPorteiro"]];
 function aplicarConfig(c){if(!c)return;CFGMAP.forEach(function(m){if(c[m[1]]!==undefined)S.cfg[m[0]]=c[m[1]]});S.cfg.porAndar=S.cfg.porLado*2}
 function usuarioDoServidor(u){return {id:u.id,apto:u.unidade||"",nome:u.nome,email:u.email||"",tel:u.telefone||"",wa:!!u.whatsapp,avEmail:u.avisoEmailEncomenda!==false,perfil:u.perfil,vinculo:u.vinculo||"",sit:u.situacao,turno:u.turno||"",mandato:u.mandatoAte||"",temPin:!!u.temPin}}
 function carregarAdmin(){return chamarServidor("admin.carregar",{},{silencioso:true}).then(function(d){
@@ -1544,14 +1609,14 @@ function carregarPorteiros(){return chamarServidor("portaria.porteiros",{},{sile
 function hojeLocal(){var d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
 function encPorId(id){return S.encomendas.filter(function(x){return String(x.id)===String(id)})[0]}
 function encDoServidor(e){return {id:e.id,lote:e.lote||null,apto:e.unidade,tipo:e.tipo,rem:e.remetente||"",data:e.data,hora:e.hora,porteiro:e.porteiro||"",cod:e.codigo,status:e.status,
- aviso:{enviado:"email",cota:"cota",invalido:"invalido",pausado:"pausado"}[e.avisoEmail]||"app",foto:null,temFoto:!!e.temFoto,waEm:e.waEm||"",por:e.retiradaPor||"",em:e.retiradaData?quando(e.retiradaData,e.retiradaHora):"",entregue:e.entreguePor||"",
+ aviso:{enviado:"email",cota:"cota",invalido:"invalido",pausado:"pausado"}[e.avisoEmail]||"app",foto:null,temFoto:!!e.temFoto,temAss:!!e.temAssinatura,ass:null,waEm:e.waEm||"",por:e.retiradaPor||"",em:e.retiradaData?quando(e.retiradaData,e.retiradaHora):"",entregue:e.entreguePor||"",
  editEm:e.editadoEm||"",editPor:e.editadoPor||"",excEm:e.excluidaEm||"",excPor:e.excluidaPor||"",excMotivo:e.motivoExclusao||""}}
 function mesclarEnc(lista){lista.forEach(function(x){var i=-1;S.encomendas.forEach(function(y,k){if(String(y.id)===String(x.id))i=k});if(i>=0){x.foto=S.encomendas[i].foto||x.foto;S.encomendas[i]=x}else S.encomendas.unshift(x)})}
 function carregarPortaria(){return chamarServidor("portaria.carregar",{},{silencioso:true}).then(function(d){
  if(S.carga)S.carga.port=true;S.usuarios=d.porteiros.map(function(p){return {id:p.id,nome:p.nome,turno:p.turno||"",perfil:"porteiro",sit:"Ativo",temPin:!!p.temPin,apto:"",email:""}}).concat(d.moradores.map(function(m){return {id:m.id,nome:m.nome,apto:m.unidade,perfil:"morador",vinculo:m.vinculo||"",sit:m.situacao,wa:!!m.whatsapp,tel:m.telefone||"",email:""}}));
  S.extras=d.extras.map(function(x){return {num:x.unidade,nome:x.nome,tipo:"residencial",local:"",encomendas:true,reservas:false,ativo:true}});
  S.encomendas=d.encomendas.map(encDoServidor);
- S.cfg.exigirPin=!!d.exigirPin;S.cfg.portRelogin=d.reloginMin||S.cfg.portRelogin;S.cfg.waAtivo=!!d.waAtivo;if(d.waModelo)S.cfg.waModelo=d.waModelo;S.cfg.lembrete=d.lembreteDias||S.cfg.lembrete;
+ S.cfg.exigirPin=!!d.exigirPin;S.cfg.portRelogin=d.reloginMin||S.cfg.portRelogin;S.cfg.waAtivo=!!d.waAtivo;if(d.waModelo)S.cfg.waModelo=d.waModelo;S.cfg.lembrete=d.lembreteDias||S.cfg.lembrete;S.cfg.assRet=!!d.assinatura;
  if(S.porteiro&&!user(S.porteiro))S.porteiro=null;render()},function(e){toast(e.mensagem);render()})}
 function msgAvisoEnc(av,nMor){if(!nMor)return "Unidade sem morador cadastrado: avise por interfone.";return av==="enviado"?"Os moradores já veem o aviso no app e receberam um e-mail.":av==="cota"?"Os moradores já veem o aviso no app. O e-mail sai assim que houver cota.":av==="invalido"?"Os moradores já veem o aviso no app. O e-mail cadastrado parece inválido.":"Os moradores já veem o aviso no app."}
 function registrarReal(){var f=S.f,un=f.un,n=f.itens.length;if(S.ui.ocupado)return;S.ui.ocupado=true;S.ui.okReg="";
@@ -1562,7 +1627,7 @@ function registrarReal(){var f=S.f,un=f.un,n=f.itens.length;if(S.ui.ocupado)retu
 function carregarMinhasEnc(){return chamarServidor("encomendas.minhas",{},{silencioso:true}).then(function(l){S.encomendas=l.map(encDoServidor);render()},function(){})}
 function carregarAvisos(){return chamarServidor("avisos.listar",{},{silencioso:true}).then(function(l){var ap=(me()||{}).apto;S.notifs=l.map(function(a){return {id:a.id,apto:ap,txt:a.texto,q:a.criadoEm,lida:!!a.lido,ir:a.destino||""}});render()},function(){})}
 function carregarEncAdm(){return chamarServidor("encomendas.listar",{},{silencioso:true}).then(function(l){S.encomendas=l.map(encDoServidor);render()},function(e){toast(e.mensagem);render()})}
-function locDoServidor(l){return {id:String(l.id),apto:l.apto,por:l.por||"",criado:l.criado||"",ordem:l.ordem||"",de:l.de,ate:l.ate,status:l.status,plataforma:l.plataforma||"",contato:l.contato||"",obs:l.obs||"",semCarro:!!l.semCarro,motivo:l.motivo||"",decisao:l.decisao||null,cancelPor:l.cancelPor||"",docsApagados:l.docsApagados||"",
+function locDoServidor(l){return {id:String(l.id),apto:l.apto,por:l.por||"",origem:l.origem||"",criado:l.criado||"",ordem:l.ordem||"",de:l.de,ate:l.ate,status:l.status,plataforma:l.plataforma||"",contato:l.contato||"",obs:l.obs||"",semCarro:!!l.semCarro,motivo:l.motivo||"",decisao:l.decisao||null,cancelPor:l.cancelPor||"",docsApagados:l.docsApagados||"",
  pessoas:(l.pessoas||[]).map(function(p){return {nome:p.nome,rg:p.rg||"",cpf:p.cpf||"",doc:p.doc||null}}),veiculos:(l.veiculos||[]).map(function(v){return {placa:v.placa,modelo:v.modelo||"",doc:v.doc||null}}),hist:l.hist||[]}}
 function carregarLocacoes(){return chamarServidor("locacao.carregar",{},{silencioso:true}).then(function(d){S.locacoes=d.locacoes.map(locDoServidor);if(S.ui.locId&&!loc(S.ui.locId))S.ui.locId=null;render()},function(e){if(S.role==="sindico")toast(e.mensagem);render()})}
 function resDoServidor(r){return {id:String(r.id),por:r.por||r.nome||"",area:String(r.area),data:r.data,turno:String(r.turno),apto:r.apto||"",nome:r.nome||"",status:r.status,isenta:!!r.isenta,taxa:r.taxa,origem:r.origem||"",criado:r.criado||"",motivo:r.motivo||"",convidados:r.convidados||[],ocupado:!!r.ocupado}}
